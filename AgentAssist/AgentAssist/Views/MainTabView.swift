@@ -7,7 +7,7 @@ struct MainTabView: View {
         @Bindable var state = appState
 
         TabView(selection: $state.selectedTab) {
-            Tab("Dashboard", systemImage: "house", value: .dashboard) {
+            Tab("Dashboard", systemImage: "house.fill", value: .dashboard) {
                 NavigationStack(path: $state.dashboardPath) {
                     dashboardContent
                         .navigationDestination(for: DashboardDestination.self) { destination in
@@ -23,7 +23,7 @@ struct MainTabView: View {
                 }
             }
 
-            Tab("Notifications", systemImage: "bell", value: .notifications) {
+            Tab("Notifications", systemImage: "bell.fill", value: .notifications) {
                 NavigationStack(path: $state.notificationsPath) {
                     NotificationsView()
                         .navigationDestination(for: NotificationDestination.self) { destination in
@@ -35,7 +35,7 @@ struct MainTabView: View {
                 }
             }
 
-            Tab("Profile", systemImage: "person", value: .profile) {
+            Tab("Profile", systemImage: "person.fill", value: .profile) {
                 NavigationStack(path: $state.profilePath) {
                     ProfileHomeView()
                         .navigationDestination(for: ProfileDestination.self) { destination in
@@ -44,6 +44,7 @@ struct MainTabView: View {
                 }
             }
         }
+        .tint(.agentRed)
     }
 
     @ViewBuilder

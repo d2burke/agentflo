@@ -5,11 +5,23 @@ struct AgentDashboardView: View {
 
     @State private var tasks: [AgentTask] = []
     @State private var isLoading = true
-    @State private var showCreateTask = false
+    @State private var activeSheet: TaskSheetMode?
     @State private var hideOnboarding = false
     @State private var showFirstTaskBanner = false
     @AppStorage("hasSeenFirstTaskBanner") private var hasSeenFirstTaskBanner = false
     @AppStorage("hasDismissedDraftBanner") private var hasDismissedDraftBanner = false
+
+    enum TaskSheetMode: Identifiable {
+        case createNew
+        case editDraft(AgentTask)
+
+        var id: String {
+            switch self {
+            case .createNew: return "new"
+            case .editDraft(let task): return task.id.uuidString
+            }
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -37,7 +49,7 @@ struct AgentDashboardView: View {
 
                 // Create task button
                 PillButton("Create Task", variant: .primaryLarge, icon: "plus") {
-                    showCreateTask = true
+                    activeSheet = .createNew
                 }
 
                 // Recent tasks
@@ -53,7 +65,7 @@ struct AgentDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
-                    showCreateTask = true
+                    activeSheet = .createNew
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 18, weight: .semibold))
@@ -63,9 +75,17 @@ struct AgentDashboardView: View {
         }
         .refreshable { await loadTasks() }
         .task { await loadTasks() }
-        .sheet(isPresented: $showCreateTask) {
-            TaskCreationSheet()
-                .presentationDragIndicator(.visible)
+        .sheet(item: $activeSheet, onDismiss: {
+            Task { await loadTasks() }
+        }) { mode in
+            switch mode {
+            case .createNew:
+                TaskCreationSheet()
+                    .presentationDragIndicator(.visible)
+            case .editDraft(let task):
+                TaskCreationSheet(editingTask: task)
+                    .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -290,8 +310,9 @@ struct AgentDashboardView: View {
                     .font(.caption)
                     .foregroundStyle(.agentSlate)
                 Button("Continue editing \u{2192}") {
-                    if let draftId = appState.draftTaskFromOnboarding {
-                        appState.dashboardPath.append(DashboardDestination.taskDetail(draftId))
+                    if let draftId = appState.draftTaskFromOnboarding,
+                       let draftTask = tasks.first(where: { $0.id == draftId }) {
+                        activeSheet = .editDraft(draftTask)
                     }
                 }
                 .font(.captionSM)

@@ -5,6 +5,9 @@ struct TaskCreationSheet: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
 
+    /// Pass an existing draft to edit; nil = create new task
+    var editingTask: AgentTask?
+
     @State private var selectedCategory: String?
     @State private var address = ""
     @State private var scheduledDate = Date()
@@ -13,10 +16,11 @@ struct TaskCreationSheet: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var path = NavigationPath()
+    @State private var didPrefill = false
 
     var body: some View {
         NavigationStack(path: $path) {
-            categorySelection
+            rootContent
                 .navigationDestination(for: String.self) { category in
                     TaskDetailsForm(
                         category: category,
@@ -30,7 +34,7 @@ struct TaskCreationSheet: View {
                         onPostTask: { await postTask() }
                     )
                 }
-                .navigationTitle("New Task")
+                .navigationTitle(editingTask != nil ? (selectedCategory ?? "Edit Task") : "New Task")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -42,6 +46,37 @@ struct TaskCreationSheet: View {
                         }
                     }
                 }
+        }
+        .onAppear {
+            guard !didPrefill, let task = editingTask else { return }
+            didPrefill = true
+            selectedCategory = task.category
+            address = task.propertyAddress
+            if let date = task.scheduledAt { scheduledDate = date }
+            let dollars = task.price / 100
+            priceText = dollars > 0 ? "\(dollars)" : ""
+            instructions = task.instructions ?? ""
+        }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if editingTask != nil {
+            // Skip category selection — go straight to form
+            TaskDetailsForm(
+                category: selectedCategory ?? editingTask!.category,
+                address: $address,
+                scheduledDate: $scheduledDate,
+                priceText: $priceText,
+                instructions: $instructions,
+                isLoading: $isLoading,
+                errorMessage: $errorMessage,
+                onSaveDraft: { await saveDraft() },
+                onPostTask: { await postTask() },
+                isEditing: true
+            )
+        } else {
+            categorySelection
         }
     }
 
@@ -108,14 +143,25 @@ struct TaskCreationSheet: View {
         guard let userId = appState.authService.currentUser?.id,
               let category = selectedCategory else { return }
         do {
-            _ = try await appState.taskService.createDraft(
-                agentId: userId,
-                category: category,
-                address: address,
-                price: priceInCents,
-                instructions: instructions.isEmpty ? nil : instructions,
-                scheduledAt: scheduledDate
-            )
+            if let existing = editingTask {
+                try await appState.taskService.updateDraft(
+                    taskId: existing.id,
+                    category: category,
+                    address: address,
+                    price: priceInCents,
+                    instructions: instructions.isEmpty ? nil : instructions,
+                    scheduledAt: scheduledDate
+                )
+            } else {
+                _ = try await appState.taskService.createDraft(
+                    agentId: userId,
+                    category: category,
+                    address: address,
+                    price: priceInCents,
+                    instructions: instructions.isEmpty ? nil : instructions,
+                    scheduledAt: scheduledDate
+                )
+            }
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
@@ -128,15 +174,29 @@ struct TaskCreationSheet: View {
         isLoading = true
         errorMessage = nil
         do {
-            let draft = try await appState.taskService.createDraft(
-                agentId: userId,
-                category: category,
-                address: address,
-                price: priceInCents,
-                instructions: instructions.isEmpty ? nil : instructions,
-                scheduledAt: scheduledDate
-            )
-            _ = try await appState.taskService.postTask(taskId: draft.id)
+            if let existing = editingTask {
+                // Update the draft fields, then post it
+                try await appState.taskService.updateDraft(
+                    taskId: existing.id,
+                    category: category,
+                    address: address,
+                    price: priceInCents,
+                    instructions: instructions.isEmpty ? nil : instructions,
+                    scheduledAt: scheduledDate
+                )
+                _ = try await appState.taskService.postTask(taskId: existing.id)
+                appState.draftTaskFromOnboarding = nil
+            } else {
+                let draft = try await appState.taskService.createDraft(
+                    agentId: userId,
+                    category: category,
+                    address: address,
+                    price: priceInCents,
+                    instructions: instructions.isEmpty ? nil : instructions,
+                    scheduledAt: scheduledDate
+                )
+                _ = try await appState.taskService.postTask(taskId: draft.id)
+            }
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
@@ -166,6 +226,7 @@ struct TaskDetailsForm: View {
     @Binding var errorMessage: String?
     let onSaveDraft: () async -> Void
     let onPostTask: () async -> Void
+    var isEditing: Bool = false
 
     @State private var addressCompleter = AddressCompleter()
     @State private var showSuggestions = false
@@ -308,6 +369,11 @@ struct TaskDetailsForm: View {
         .background(.agentBackground)
         .navigationTitle(category)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if isEditing && !address.isEmpty {
+                addressIsLocked = true
+            }
+        }
     }
 }
 
@@ -350,7 +416,7 @@ final class AddressCompleter: NSObject, MKLocalSearchCompleterDelegate {
     }
 }
 
-#Preview {
+#Preview("New Task") {
     TaskCreationSheet()
         .environment(AppState.preview)
 }

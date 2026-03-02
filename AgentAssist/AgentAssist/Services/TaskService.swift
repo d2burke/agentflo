@@ -78,6 +78,27 @@ final class TaskService {
             .value
     }
 
+    func updateDraft(
+        taskId: UUID,
+        category: String,
+        address: String,
+        price: Int,
+        instructions: String?,
+        scheduledAt: Date?
+    ) async throws {
+        try await supabase
+            .from("tasks")
+            .update(UpdateDraftBody(
+                category: category,
+                propertyAddress: address,
+                price: price,
+                instructions: instructions,
+                scheduledAt: scheduledAt
+            ))
+            .eq("id", value: taskId.uuidString)
+            .execute()
+    }
+
     // MARK: - Edge Function Calls
 
     /// Refresh the session and return auth headers to ensure edge functions get a valid token.
@@ -213,6 +234,21 @@ private struct CreateDraftBody: Encodable {
         case price
         case status
         case instructions
+        case scheduledAt = "scheduled_at"
+    }
+}
+
+// Body for updating a draft task
+private struct UpdateDraftBody: Encodable {
+    let category: String
+    let propertyAddress: String
+    let price: Int
+    let instructions: String?
+    let scheduledAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case category, price, instructions
+        case propertyAddress = "property_address"
         case scheduledAt = "scheduled_at"
     }
 }

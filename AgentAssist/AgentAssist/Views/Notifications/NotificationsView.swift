@@ -18,15 +18,21 @@ struct NotificationsView: View {
                     description: Text("You're all caught up.")
                 )
             } else {
-                List {
-                    ForEach(notifications) { notification in
-                        NotificationRow(notification: notification)
-                            .onTapGesture {
+                ScrollView {
+                    LazyVStack(spacing: Spacing.lg) {
+                        ForEach(notifications) { notification in
+                            Button {
                                 handleTap(notification)
+                            } label: {
+                                NotificationRow(notification: notification)
                             }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(.horizontal, Spacing.screenPadding)
+                    .padding(.bottom, 100)
                 }
-                .listStyle(.plain)
+                .scrollIndicators(.hidden)
             }
         }
         .background(.agentBackground)
@@ -101,28 +107,67 @@ struct NotificationRow: View {
     let notification: AppNotification
 
     var body: some View {
-        HStack(alignment: .top, spacing: Spacing.lg) {
-            Circle()
-                .fill(notification.isRead ? Color.agentBorderLight : Color.agentRedLight)
-                .frame(width: 8, height: 8)
-                .padding(.top, 6)
-
-            VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(notification.title)
-                    .font(.bodyEmphasis)
-                    .foregroundStyle(.agentNavy)
-                Text(notification.body)
-                    .font(.caption)
-                    .foregroundStyle(.agentSlate)
-                    .lineLimit(2)
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            // Row 1: Icon + title + time ago
+            HStack(alignment: .center) {
+                HStack(spacing: Spacing.md) {
+                    notificationIcon
+                        .font(.system(size: 18))
+                        .foregroundStyle(notification.isRead ? .agentSlate : .agentRed)
+                        .frame(width: 40, height: 40)
+                        .background(notification.isRead ? Color.agentBorderLight : Color.agentRedLight)
+                        .clipShape(Circle())
+                    Text(notification.title)
+                        .font(.bodyEmphasis)
+                        .foregroundStyle(.agentNavy)
+                }
+                Spacer()
                 if let createdAt = notification.createdAt {
-                    Text(createdAt, style: .relative)
+                    Text(timeAgo(from: createdAt))
                         .font(.captionSM)
                         .foregroundStyle(.agentSlateLight)
                 }
             }
+
+            // Row 2: Body text
+            Text(notification.body)
+                .font(.bodySM)
+                .foregroundStyle(.agentSlate)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
         }
-        .padding(.vertical, Spacing.md)
+        .padding(Spacing.cardPadding)
+        .background(.white)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .shadow(color: Shadows.card, radius: 4, y: 2)
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card)
+                .stroke(notification.isRead ? Color.clear : Color.agentRedLight, lineWidth: 1.5)
+        )
+    }
+
+    @ViewBuilder
+    private var notificationIcon: some View {
+        switch notification.type {
+        case "task_accepted":
+            Image(systemName: "checkmark.circle")
+        case "task_in_progress":
+            Image(systemName: "arrow.triangle.2.circlepath")
+        case "task_deliverables_submitted":
+            Image(systemName: "doc.text.magnifyingglass")
+        case "task_completed":
+            Image(systemName: "checkmark.seal.fill")
+        case "task_cancelled":
+            Image(systemName: "xmark.circle")
+        default:
+            Image(systemName: "bell.fill")
+        }
+    }
+
+    private func timeAgo(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
