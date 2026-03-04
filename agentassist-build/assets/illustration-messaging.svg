@@ -1,0 +1,33 @@
+<svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background glow -->
+  <ellipse cx="110" cy="95" rx="70" ry="55" fill="#E8314A" opacity="0.04"/>
+  <!-- Agent bubble (left) -->
+  <rect x="24" y="30" width="108" height="44" rx="14" fill="#1C2A3A"/>
+  <rect x="24" y="30" width="108" height="44" rx="14" stroke="#243D54" stroke-width="1" fill="none"/>
+  <polygon points="38,74 30,88 52,74" fill="#1C2A3A"/>
+  <!-- Agent avatar placeholder -->
+  <circle cx="115" cy="52" r="13" fill="#E8314A" opacity="0.15"/>
+  <circle cx="115" cy="47" r="5" fill="#E8314A" opacity="0.5"/>
+  <path d="M106 62 Q115 56 124 62" fill="#E8314A" opacity="0.3"/>
+  <!-- Agent message lines -->
+  <rect x="36" y="44" width="60" height="5" rx="2.5" fill="#2D4A68"/>
+  <rect x="36" y="54" width="44" height="5" rx="2.5" fill="#2D4A68" opacity="0.6"/>
+  <!-- Runner bubble (right) -->
+  <rect x="88" y="98" width="108" height="44" rx="14" fill="#E8314A" opacity="0.12"/>
+  <rect x="88" y="98" width="108" height="44" rx="14" stroke="#E8314A" stroke-width="1" opacity="0.3" fill="none"/>
+  <polygon points="182,142 190,156 168,142" fill="#E8314A" opacity="0.12"/>
+  <!-- Runner message lines -->
+  <rect x="100" y="112" width="70" height="5" rx="2.5" fill="#E8314A" opacity="0.4"/>
+  <rect x="100" y="122" width="50" height="5" rx="2.5" fill="#E8314A" opacity="0.25"/>
+  <!-- Runner avatar -->
+  <circle cx="100" cy="110" r="13" fill="#E8314A" opacity="0.08"/>
+  <!-- Typing indicator bubble -->
+  <rect x="34" y="150" width="48" height="22" rx="11" fill="#1C2A3A" stroke="#243D54" stroke-width="1"/>
+  <circle cx="48" cy="161" r="3" fill="#2D4A68"/>
+  <circle cx="58" cy="161" r="3" fill="#2D4A68" opacity="0.7"/>
+  <circle cx="68" cy="161" r="3" fill="#2D4A68" opacity="0.4"/>
+  <!-- Connection dashes between bubbles -->
+  <line x1="110" y1="74" x2="130" y2="98" stroke="#E8314A" stroke-width="1" stroke-dasharray="4 3" opacity="0.25"/>
+  <!-- Read receipt -->
+  <text x="174" y="150" fill="#E8314A" font-size="9" font-family="-apple-system, Helvetica, sans-serif" opacity="0.6">✓✓</text>
+</svg>

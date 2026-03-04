@@ -1,0 +1,17 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "973RBN29J8.com.agentflo.app",
+        "paths": [
+          "/tasks/*",
+          "/messages/*",
+          "/profile/*",
+          "/notifications",
+          "/stripe-connect/*"
+        ]
+      }
+    ]
+  }
+}

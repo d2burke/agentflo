@@ -1,0 +1,523 @@
+import SwiftUI
+
+enum TaskSheetMode: Identifiable {
+    case createNew
+    case editDraft(AgentTask)
+
+    var id: String {
+        switch self {
+        case .createNew: return "new"
+        case .editDraft(let task): return task.id.uuidString
+        }
+    }
+}
+
+struct AgentDashboardView: View {
+    @Environment(AppState.self) private var appState
+
+    @State private var tasks: [AgentTask] = []
+    @State private var isLoading = true
+    @State private var activeSheet: TaskSheetMode?
+    @State private var hideOnboarding = false
+    @State private var showFirstTaskBanner = false
+    @State private var hasServiceAreas = false
+    @State private var hasAvailability = false
+    @State private var errorMessage: String?
+    @AppStorage("hasSeenFirstTaskBanner") private var hasSeenFirstTaskBanner = false
+    @AppStorage("hasDismissedDraftBanner") private var hasDismissedDraftBanner = false
+    @State private var recentFilter: RecentTaskFilter = .active
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.sectionGap) {
+                // Greeting
+                greetingSection
+
+                // Draft task from onboarding — finish it (only once)
+                if appState.draftTaskFromOnboarding != nil && !hasDismissedDraftBanner {
+                    finishDraftBanner
+                }
+
+                // First task posted success banner (only once)
+                if showFirstTaskBanner && !hasSeenFirstTaskBanner {
+                    firstTaskBanner
+                }
+
+                // Onboarding card (if profile incomplete)
+                if showOnboarding && !hideOnboarding {
+                    onboardingCard
+                }
+
+                // Status widgets
+                statusWidgets
+
+                // Create task button
+                PillButton("Create Task", variant: .primaryLarge, icon: "plus") {
+                    activeSheet = .createNew
+                }
+
+                // Recent tasks
+                recentTasksSection
+            }
+            .padding(.horizontal, Spacing.screenPadding)
+            .padding(.bottom, 100) // Tab bar clearance
+        }
+        .scrollIndicators(.hidden)
+        .background(.agentBackground)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    activeSheet = .createNew
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.agentRed)
+                }
+            }
+        }
+        .refreshable { await loadTasks() }
+        .task { await loadTasks() }
+        .toast(errorMessage ?? "", style: .error, isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        ))
+        .sheet(item: $activeSheet, onDismiss: {
+            Task { await loadTasks() }
+        }) { mode in
+            switch mode {
+            case .createNew:
+                TaskCreationSheet()
+                    .presentationDragIndicator(.visible)
+            case .editDraft(let task):
+                TaskCreationSheet(editingTask: task)
+                    .presentationDragIndicator(.visible)
+            }
+        }
+    }
+
+    // MARK: - Greeting
+
+    private var greetingSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(greeting)
+                .font(.bodySM)
+                .foregroundStyle(.agentSlate)
+            Text(appState.authService.currentUser?.fullName.components(separatedBy: " ").first ?? "")
+                .font(.display)
+                .foregroundStyle(.agentNavy)
+        }
+        .padding(.top, Spacing.md)
+    }
+
+    // MARK: - Status Widgets
+
+    private var statusWidgets: some View {
+        HStack(spacing: Spacing.lg) {
+            StatusWidget(
+                title: "Posted",
+                count: displayTasks.filter { $0.status == .posted }.count,
+                color: .agentBlue,
+                icon: "paperplane"
+            ) {
+                appState.dashboardPath.append(DashboardDestination.filteredList(.posted))
+            }
+
+            StatusWidget(
+                title: "In Progress",
+                count: displayTasks.filter { $0.status == .inProgress || $0.status == .accepted }.count,
+                color: .agentAmber,
+                icon: "arrow.triangle.2.circlepath"
+            ) {
+                appState.dashboardPath.append(DashboardDestination.filteredList(.inProgress))
+            }
+
+            StatusWidget(
+                title: "Completed",
+                count: displayTasks.filter { $0.status == .completed }.count,
+                color: .agentGreen,
+                icon: "checkmark.seal"
+            ) {
+                appState.dashboardPath.append(DashboardDestination.filteredList(.completed))
+            }
+        }
+    }
+
+    // MARK: - Recent Tasks
+
+    private var recentTasksSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.lg) {
+            HStack {
+                Text("Recent Tasks")
+                    .font(.titleMD)
+                    .foregroundStyle(.agentNavy)
+                Spacer()
+                Button("View All") {
+                    appState.dashboardPath.append(DashboardDestination.allTasks)
+                }
+                .font(.captionSM)
+                .foregroundStyle(.agentRed)
+            }
+
+            // Filter pills
+            HStack(spacing: Spacing.sm) {
+                ForEach(RecentTaskFilter.allCases, id: \.self) { filter in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            recentFilter = filter
+                        }
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.captionSM)
+                            .foregroundStyle(recentFilter == filter ? .white : .agentSlate)
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.vertical, Spacing.sm)
+                            .background(recentFilter == filter ? Color.agentNavySolid : Color.agentSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.pill))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Radius.pill)
+                                    .stroke(Color.agentBorder, lineWidth: recentFilter == filter ? 0 : 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if isLoading {
+                LoadingView()
+                    .frame(height: 100)
+            } else if recentTasks.isEmpty {
+                if recentFilter == .active {
+                    emptyState
+                } else {
+                    EmptyStateView(
+                        icon: recentFilter == .completed ? "checkmark.seal" : "tray",
+                        title: "No \(recentFilter.rawValue.lowercased()) tasks",
+                        message: recentFilter == .completed
+                            ? "Completed tasks will appear here."
+                            : "Tap \"Create Task\" to post your first task."
+                    )
+                }
+            } else {
+                ForEach(recentTasks.prefix(4)) { task in
+                    Button {
+                        appState.dashboardPath.append(DashboardDestination.taskDetail(task.id))
+                    } label: {
+                        TaskCard(task: task)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var emptyState: some View {
+        EmptyStateView(
+            icon: "tray",
+            title: "No tasks yet",
+            message: "Tap \"Create Task\" to post your first task."
+        )
+    }
+
+    // MARK: - Onboarding
+
+    private var showOnboarding: Bool {
+        guard let user = appState.authService.currentUser else { return false }
+        let steps = onboardingSteps(for: user)
+        return steps.contains(where: { !$0.isComplete })
+    }
+
+    private struct OnboardingStep: Identifiable {
+        let id = UUID()
+        let title: String
+        let icon: String
+        let isComplete: Bool
+        let destination: ProfileDestination
+    }
+
+    private func onboardingSteps(for user: AppUser) -> [OnboardingStep] {
+        var steps: [OnboardingStep] = [
+            OnboardingStep(
+                title: "Personal Info",
+                icon: "person.fill",
+                isComplete: user.phone != nil && !user.fullName.isEmpty,
+                destination: .personalInfo
+            ),
+            OnboardingStep(
+                title: "Payment Method",
+                icon: "creditcard.fill",
+                isComplete: user.stripeCustomerId != nil,
+                destination: .paymentMethods
+            ),
+        ]
+        if user.role == .runner {
+            steps.append(contentsOf: [
+                OnboardingStep(
+                    title: "Service Areas",
+                    icon: "mappin.circle.fill",
+                    isComplete: hasServiceAreas,
+                    destination: .serviceAreas
+                ),
+                OnboardingStep(
+                    title: "Availability",
+                    icon: "clock.fill",
+                    isComplete: hasAvailability,
+                    destination: .availability
+                ),
+            ])
+        }
+        return steps
+    }
+
+    private var onboardingCard: some View {
+        let user = appState.authService.currentUser!
+        let steps = onboardingSteps(for: user)
+        let completedCount = steps.filter(\.isComplete).count
+        let incompleteSteps = steps.filter { !$0.isComplete }
+        let progress = Double(completedCount) / Double(steps.count)
+
+        return VStack(alignment: .leading, spacing: Spacing.lg) {
+            // Header row: title + count + dismiss
+            HStack {
+                Text("Complete your profile")
+                    .font(.bodyEmphasis)
+                    .foregroundStyle(.white)
+                Spacer()
+                Text("\(completedCount) of \(steps.count)")
+                    .font(.captionSM)
+                    .foregroundStyle(.white.opacity(0.7))
+                Button {
+                    hideOnboarding = true
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .frame(width: 24, height: 24)
+                }
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.white.opacity(0.2))
+                        .frame(height: 6)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.agentRed)
+                        .frame(width: geo.size.width * progress, height: 6)
+                }
+            }
+            .frame(height: 6)
+
+            // Pill chips for incomplete steps
+            FlowLayout(spacing: Spacing.md) {
+                ForEach(incompleteSteps) { step in
+                    Button {
+                        appState.selectedTab = .profile
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            appState.profilePath.append(step.destination)
+                        }
+                    } label: {
+                        Text(step.title)
+                            .font(.captionSM)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, Spacing.lg)
+                            .padding(.vertical, Spacing.sm)
+                            .background(.white.opacity(0.15))
+                            .clipShape(RoundedRectangle(cornerRadius: Radius.pill))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(Spacing.cardPadding)
+        .background(Color.agentNavySolid)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+    }
+
+    // MARK: - Finish Draft Banner
+
+    private var finishDraftBanner: some View {
+        HStack(spacing: Spacing.lg) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.agentAmber)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Finish your task")
+                    .font(.bodyEmphasis)
+                    .foregroundStyle(.agentNavy)
+                Text("Your draft is saved. Post it to find a runner.")
+                    .font(.caption)
+                    .foregroundStyle(.agentSlate)
+                Button("Continue editing \u{2192}") {
+                    if let draftId = appState.draftTaskFromOnboarding,
+                       let draftTask = tasks.first(where: { $0.id == draftId }) {
+                        activeSheet = .editDraft(draftTask)
+                    }
+                }
+                .font(.captionSM)
+                .foregroundStyle(.agentAmber)
+            }
+
+            Spacer()
+
+            Button {
+                appState.draftTaskFromOnboarding = nil
+                hasDismissedDraftBanner = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.agentSlateLight)
+            }
+        }
+        .padding(Spacing.cardPadding)
+        .background(Color.agentAmber.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card)
+                .stroke(Color.agentAmber.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // MARK: - First Task Banner
+
+    private var firstTaskBanner: some View {
+        HStack(spacing: Spacing.lg) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.green)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Your first task is live!")
+                    .font(.bodyEmphasis)
+                    .foregroundStyle(.agentNavy)
+                Text("Nearby runners are being notified.")
+                    .font(.caption)
+                    .foregroundStyle(.agentSlate)
+                Button("View Task \u{2192}") {
+                    if let firstPosted = tasks.first(where: { $0.status == .posted }) {
+                        appState.dashboardPath.append(DashboardDestination.taskDetail(firstPosted.id))
+                    }
+                }
+                .font(.captionSM)
+                .foregroundStyle(.agentGreen)
+            }
+
+            Spacer()
+
+            Button {
+                showFirstTaskBanner = false
+                hasSeenFirstTaskBanner = true
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.agentSlateLight)
+            }
+        }
+        .padding(Spacing.cardPadding)
+        .background(Color.agentGreenLight)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card)
+                .stroke(Color.agentGreen.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Helpers
+
+    private var displayTasks: [AgentTask] {
+        tasks.filter { $0.status != .draft && $0.status != .cancelled }
+    }
+
+    private var recentTasks: [AgentTask] {
+        switch recentFilter {
+        case .active:
+            return displayTasks.filter { $0.status != .completed }
+        case .completed:
+            return displayTasks.filter { $0.status == .completed }
+        case .all:
+            return displayTasks
+        }
+    }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 { return "Good morning" }
+        if hour < 17 { return "Good afternoon" }
+        return "Good evening"
+    }
+
+    private func loadTasks() async {
+        guard let userId = appState.authService.currentUser?.id else { return }
+        do {
+            let fetched = try await appState.taskService.fetchTasks(forAgent: userId)
+            let oldCount = tasks.filter { $0.status == .posted }.count
+            tasks = fetched
+            let newCount = fetched.filter { $0.status == .posted }.count
+            // Show banner if a new posted task appeared (only once ever)
+            if newCount > oldCount && oldCount == 0 && !hasSeenFirstTaskBanner {
+                showFirstTaskBanner = true
+            }
+        } catch {
+            errorMessage = "Failed to load tasks"
+        }
+        // Check runner onboarding completion (non-critical — don't block task display)
+        if appState.authService.currentUser?.role == .runner,
+           let runnerId = appState.authService.currentUser?.id {
+            hasServiceAreas = (try? await appState.taskService.hasServiceAreas(runnerId: runnerId)) ?? false
+            hasAvailability = (try? await appState.taskService.hasAvailability(runnerId: runnerId)) ?? false
+        }
+        isLoading = false
+    }
+}
+
+// MARK: - Recent Task Filter
+
+enum RecentTaskFilter: String, CaseIterable {
+    case active = "Active"
+    case completed = "Completed"
+    case all = "All"
+}
+
+// MARK: - Status Widget
+
+struct StatusWidget: View {
+    let title: String
+    let count: Int
+    let color: Color
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: Spacing.lg) {
+                // Count inside colored circle
+                Text("\(count)")
+                    .font(.titleMD)
+                    .foregroundStyle(color)
+                    .frame(width: 48, height: 48)
+                    .background(color.opacity(0.12))
+                    .clipShape(Circle())
+
+                Text(title)
+                    .font(.captionSM)
+                    .foregroundStyle(.agentSlate)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.xxl)
+            .background(.agentSurface)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            .shadow(color: Shadows.card, radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        AgentDashboardView()
+    }
+    .environment(AppState.preview)
+}

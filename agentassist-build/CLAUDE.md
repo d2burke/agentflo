@@ -1,8 +1,8 @@
-# AgentAssist — Claude Code Build Guide
+# Agent Flo — Claude Code Build Guide
 
 ## What This Is
 
-AgentAssist is a TaskRabbit-style marketplace for real estate agents. Agents post operational tasks (photography, showings, staging, open houses) and vetted runners complete them. Built on Supabase (Postgres + Auth + Storage + Realtime + Edge Functions) with SwiftUI (iOS) and React (web) clients.
+Agent Flo is a TaskRabbit-style marketplace for real estate agents. Agents post operational tasks (photography, showings, staging, open houses) and vetted runners complete them. Built on Supabase (Postgres + Auth + Storage + Realtime + Edge Functions) with SwiftUI (iOS) and React (web) clients.
 
 ## Project Structure
 
@@ -10,10 +10,10 @@ AgentAssist is a TaskRabbit-style marketplace for real estate agents. Agents pos
 agentassist-build/
 ├── CLAUDE.md                          ← You are here
 ├── docs/
-│   ├── AgentAssist_Master_Spec.md     ← FULL product spec (3000+ lines, source of truth)
+│   ├── AgentFlo_Master_Spec.md     ← FULL product spec (3000+ lines, source of truth)
 │   └── ARCHITECTURE_DECISIONS.md      ← Key decisions & rationale
 ├── reference/
-│   ├── agentassist-prototype.jsx      ← Interactive UI prototype (visual reference only)
+│   ├── agentflo-prototype.jsx      ← Interactive UI prototype (visual reference only)
 │   └── design-tokens.ts              ← Design system tokens (colors, typography, spacing)
 ├── supabase/
 │   ├── config.toml                    ← Supabase project config

@@ -60,15 +60,43 @@ serve(async (req) => {
       )
     }
 
+    // Validate price range (in cents: $0.01 to $10,000)
+    if (!Number.isInteger(task.price) || task.price <= 0 || task.price > 1000000) {
+      return new Response(
+        JSON.stringify({ error: 'Price must be between $0.01 and $10,000' }),
+        { status: 400 }
+      )
+    }
+
+    // Validate category
+    const VALID_CATEGORIES = ['Photography', 'Showing', 'Staging', 'Open House', 'Inspection']
+    if (!VALID_CATEGORIES.includes(task.category)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}` }),
+        { status: 400 }
+      )
+    }
+
+    // Validate address is not empty/whitespace
+    if (!task.property_address.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'Property address cannot be empty' }),
+        { status: 400 }
+      )
+    }
+
     // TODO: Step 2 — Geocode address
     // const { lat, lng } = await geocodeAddress(task.property_address)
 
     // TODO: Step 3 — Create Stripe PaymentIntent (uncaptured)
+    // Agent-pays model: hold price + 15% service fee
+    // const fee = Math.round(task.price * 0.15)
     // const paymentIntent = await stripe.paymentIntents.create({
-    //   amount: task.price,
+    //   amount: task.price + fee,
     //   currency: 'usd',
     //   capture_method: 'manual',
-    //   metadata: { task_id: taskId }
+    //   customer: agentProfile.stripe_customer_id,
+    //   metadata: { task_id: taskId, runner_pay: task.price, platform_fee: fee }
     // })
 
     // Step 4 — Update task status using service role client
@@ -87,7 +115,7 @@ serve(async (req) => {
         // stripe_payment_intent_id: paymentIntent.id,
       })
       .eq('id', taskId)
-      .select()
+      .select('id, status, posted_at, stripe_payment_intent_id')
       .single()
 
     if (updateError) {

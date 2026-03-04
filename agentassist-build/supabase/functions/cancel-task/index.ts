@@ -61,12 +61,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Not authorized to cancel this task' }), { status: 403 })
     }
 
+    // Runners can only cancel tasks they've accepted or are working on
+    if (isRunner && !['accepted', 'in_progress'].includes(task.status)) {
+      console.error(`Runner ${user.id} attempted to cancel task ${taskId} in status ${task.status}`)
+      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400 })
+    }
+
     // Validate status is cancellable
     if (!CANCELLABLE_STATUSES.includes(task.status)) {
-      return new Response(
-        JSON.stringify({ error: `Cannot cancel task with status '${task.status}'` }),
-        { status: 400 },
-      )
+      console.error(`Cancel rejected: task ${taskId} has status ${task.status}`)
+      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400 })
     }
 
     // Handle Stripe PaymentIntent based on status

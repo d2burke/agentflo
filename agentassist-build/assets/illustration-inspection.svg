@@ -1,0 +1,41 @@
+<svg width="220" height="180" viewBox="0 0 220 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Clipboard body -->
+  <rect x="55" y="30" width="90" height="118" rx="8" fill="#1C2A3A"/>
+  <rect x="55" y="30" width="90" height="118" rx="8" stroke="#243D54" stroke-width="1.5" fill="none"/>
+  <!-- Clip at top -->
+  <rect x="82" y="22" width="36" height="18" rx="5" fill="#243D54"/>
+  <rect x="88" y="26" width="24" height="10" rx="3" fill="#0D1B2A"/>
+  <!-- Checklist item 1 (checked) -->
+  <rect x="68" y="60" width="8" height="8" rx="2" fill="#E8314A"/>
+  <path d="M70 64 l2 2 l4 -4" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="82" y="62" width="44" height="4" rx="2" fill="#2D4A68" opacity="0.8"/>
+  <!-- Checklist item 2 (checked) -->
+  <rect x="68" y="78" width="8" height="8" rx="2" fill="#E8314A"/>
+  <path d="M70 82 l2 2 l4 -4" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="82" y="80" width="44" height="4" rx="2" fill="#2D4A68" opacity="0.8"/>
+  <!-- Checklist item 3 (checked) -->
+  <rect x="68" y="96" width="8" height="8" rx="2" fill="#E8314A"/>
+  <path d="M70 100 l2 2 l4 -4" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <rect x="82" y="98" width="44" height="4" rx="2" fill="#2D4A68" opacity="0.8"/>
+  <!-- Checklist item 4 (unchecked) -->
+  <rect x="68" y="114" width="8" height="8" rx="2" fill="#243D54" opacity="0.6"/>
+  <rect x="82" y="116" width="44" height="4" rx="2" fill="#243D54" opacity="0.4"/>
+  <!-- Checklist item 5 (unchecked) -->
+  <rect x="68" y="132" width="8" height="8" rx="2" fill="#243D54" opacity="0.6"/>
+  <rect x="82" y="134" width="30" height="4" rx="2" fill="#243D54" opacity="0.4"/>
+  <!-- Magnifying glass circle shadow -->
+  <circle cx="148" cy="120" r="28" fill="#0D1B2A"/>
+  <circle cx="148" cy="120" r="26" fill="#1A2535"/>
+  <!-- Magnifying glass lens -->
+  <circle cx="144" cy="116" r="16" fill="none" stroke="#E8314A" stroke-width="3"/>
+  <!-- Lens glow -->
+  <circle cx="144" cy="116" r="16" fill="#E8314A" opacity="0.05"/>
+  <!-- Handle -->
+  <line x1="155.3" y1="127.3" x2="167" y2="139" stroke="#E8314A" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Found checkmark -->
+  <path d="M137 116 l5 5 l8 -9" stroke="#E8314A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Sparkle dots -->
+  <circle cx="72" cy="42" r="2" fill="#E8314A" opacity="0.5"/>
+  <circle cx="130" cy="42" r="1.5" fill="#E8314A" opacity="0.3"/>
+  <circle cx="165" cy="90" r="2" fill="#E8314A" opacity="0.4"/>
+</svg>

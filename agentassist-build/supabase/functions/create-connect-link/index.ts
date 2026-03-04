@@ -21,22 +21,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-})
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+    if (!stripeKey) {
+      console.error('STRIPE_SECRET_KEY is not set')
+      return new Response(JSON.stringify({ error: 'Payment service not configured' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      })
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
     // Create Supabase client with auth context
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      { global: { headers: { Authorization: authHeader } } }
     )
 
     const serviceClient = createClient(
@@ -47,7 +64,8 @@ serve(async (req) => {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('Auth error:', authError?.message)
+      return new Response(JSON.stringify({ error: 'Unauthorized', detail: authError?.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       })
@@ -61,7 +79,8 @@ serve(async (req) => {
       .single()
 
     if (profileError || !profile) {
-      return new Response(JSON.stringify({ error: 'User profile not found' }), {
+      console.error('Profile error:', profileError?.message)
+      return new Response(JSON.stringify({ error: 'User profile not found', detail: profileError?.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 404,
       })
@@ -74,36 +93,73 @@ serve(async (req) => {
       })
     }
 
+    const email = profile.email || user.email
     let accountId = profile.stripe_connect_id
 
-    // Create Stripe Connect Express Account if needed
-    if (!accountId) {
+    // Helper to create a fresh Stripe Express account
+    // Pre-fill as much as possible so the runner only needs to add bank details + verify identity
+    async function createExpressAccount(): Promise<string> {
+      console.log('Creating new Stripe Express account for user:', user!.id)
       const account = await stripe.accounts.create({
         type: 'express',
-        email: profile.email,
-        metadata: { supabase_user_id: user.id },
+        country: 'US',
+        email,
+        metadata: { supabase_user_id: user!.id },
         capabilities: {
           transfers: { requested: true },
         },
         business_type: 'individual',
+        business_profile: {
+          product_description: 'Real estate task services via Agent Flo',
+          mcc: '7299', // Miscellaneous personal services
+          url: 'https://agentflo.app',
+        },
         individual: {
-          email: profile.email,
+          email,
+          first_name: profile.full_name?.split(' ')[0] ?? undefined,
+          last_name: profile.full_name?.split(' ').slice(1).join(' ') ?? undefined,
         },
       })
-      accountId = account.id
 
       // Save connect account ID to profile
-      await serviceClient
+      const { error: updateErr } = await serviceClient
         .from('users')
-        .update({ stripe_connect_id: accountId })
-        .eq('id', user.id)
+        .update({ stripe_connect_id: account.id })
+        .eq('id', user!.id)
+
+      if (updateErr) {
+        console.error('Failed to save stripe_connect_id:', updateErr.message)
+      }
+
+      return account.id
+    }
+
+    if (!accountId) {
+      // No existing account — create one
+      accountId = await createExpressAccount()
+    } else {
+      // Verify the existing account is still valid on Stripe
+      try {
+        const existing = await stripe.accounts.retrieve(accountId)
+        console.log('Existing account status:', accountId, 'charges_enabled:', existing.charges_enabled, 'payouts_enabled:', existing.payouts_enabled)
+      } catch (stripeErr) {
+        const err = stripeErr as any
+        console.warn(`Existing Stripe account ${accountId} failed retrieval:`, err?.message)
+        // Account was deleted, invalid, or inaccessible — create a new one
+        accountId = await createExpressAccount()
+      }
     }
 
     // Create Account Link for onboarding/updating
+    // Stripe requires https:// URLs — use the redirect function to deep-link back to the app
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const redirectBase = `${supabaseUrl}/functions/v1/stripe-connect-redirect`
+
+    console.log('Creating account link for:', accountId)
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: 'agentassist://stripe-connect/refresh',
-      return_url: 'agentassist://stripe-connect/return',
+      refresh_url: `${redirectBase}?type=refresh`,
+      return_url: `${redirectBase}?type=return`,
       type: 'account_onboarding',
     })
 
@@ -116,9 +172,15 @@ serve(async (req) => {
     })
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    const error = err as any
+    console.error('create-connect-link error:', error?.message, error?.type, error?.statusCode, error?.code)
+    return new Response(JSON.stringify({
+      error: error?.message ?? 'Unknown error',
+      type: error?.type,
+      code: error?.code,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
+      status: error?.statusCode || 500,
     })
   }
 })

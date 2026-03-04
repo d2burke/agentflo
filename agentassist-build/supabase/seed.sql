@@ -1,4 +1,4 @@
--- AgentAssist Seed Data
+-- Agent Flo Seed Data
 -- Run after 00001_initial_schema.sql
 -- Creates realistic test data for local development
 --

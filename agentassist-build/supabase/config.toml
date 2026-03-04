@@ -1,7 +1,7 @@
 # supabase/config.toml
 # See: https://supabase.com/docs/guides/cli/config
 
-project_id = "agentassist"
+project_id = "agentflo"
 
 [api]
 enabled = true

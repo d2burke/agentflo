@@ -39,9 +39,9 @@ serve(async (req) => {
             { status: 400 },
           )
         }
-        if (!d.file_url) {
+        if (!d.file_url && d.type !== 'checklist') {
           return new Response(
-            JSON.stringify({ error: 'Each deliverable must have a file_url' }),
+            JSON.stringify({ error: 'Each non-checklist deliverable must have a file_url' }),
             { status: 400 },
           )
         }
@@ -76,8 +76,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Not assigned to this task' }), { status: 403 })
     }
     if (task.status !== 'in_progress' && task.status !== 'revision_requested') {
+      console.error(`Submit deliverables rejected: task ${taskId} has status ${task.status}`)
       return new Response(
-        JSON.stringify({ error: `Cannot submit deliverables for task with status '${task.status}'` }),
+        JSON.stringify({ error: 'Deliverables cannot be submitted for this task at this time' }),
         { status: 400 },
       )
     }

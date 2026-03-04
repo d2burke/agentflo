@@ -1,0 +1,12 @@
+# OS
+.DS_Store
+
+# Dependencies
+node_modules/
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/
+
+# Claude
+.claude/

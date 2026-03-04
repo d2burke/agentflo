@@ -1,5 +1,5 @@
 /**
- * AgentAssist Design Tokens
+ * Agent Flo Design Tokens
  * Extracted from Master Spec v0.9, Section 11.2
  *
  * These tokens are the source of truth for both iOS (SwiftUI) and Web (React) clients.

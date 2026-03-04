@@ -1,10 +1,16 @@
 // supabase/functions/approve-and-pay/index.ts
 // Edge Function: Agent approves deliverables and triggers payment
 //
+// Fee Model (agent pays):
+//   - task.price       = runner's pay (what the agent set when creating the task)
+//   - task.platform_fee = 15% of price (service fee, charged to agent on top)
+//   - task.runner_payout = price (runner gets the full amount)
+//   - PaymentIntent amount = price + platform_fee (total agent charge)
+//
 // Business Logic:
 //   1. Validate: task.agent_id = auth user, task.status = 'deliverables_submitted'
-//   2. Capture the Stripe PaymentIntent (transitions from hold → captured)
-//   3. Schedule runner payout via Stripe Transfer to their Connect account
+//   2. Capture the Stripe PaymentIntent (amount = price + platform_fee)
+//   3. Transfer runner_payout (= price) to runner's Connect account
 //   4. Update task: status → 'completed', set completed_at
 //   5. Notify runner: "Payment received! $X deposited."
 //   6. Prompt both parties for reviews
@@ -53,8 +59,24 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Not your task' }), { status: 403 })
     }
     if (task.status !== 'deliverables_submitted') {
+      console.error(`Approve rejected: task ${taskId} has status ${task.status}`)
       return new Response(
-        JSON.stringify({ error: `Cannot approve task with status '${task.status}'` }),
+        JSON.stringify({ error: 'This task cannot be approved at this time' }),
+        { status: 400 },
+      )
+    }
+
+    // Verify deliverables exist before capturing payment
+    const { count: deliverableCount } = await serviceClient
+      .from('deliverables')
+      .select('*', { count: 'exact', head: true })
+      .eq('task_id', taskId)
+
+    // For check-in/check-out categories, check-out data on the task counts as a deliverable
+    const isCheckInOut = ['Showing', 'Staging', 'Open House'].includes(task.category)
+    if ((!deliverableCount || deliverableCount === 0) && !(isCheckInOut && task.checked_out_at)) {
+      return new Response(
+        JSON.stringify({ error: 'No deliverables found for this task' }),
         { status: 400 },
       )
     }
@@ -64,8 +86,10 @@ serve(async (req) => {
     if (stripeKey && task.stripe_payment_intent_id) {
       const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
-      // Capture the held payment
-      await stripe.paymentIntents.capture(task.stripe_payment_intent_id)
+      // Capture the held payment (idempotency key prevents double-capture)
+      await stripe.paymentIntents.capture(task.stripe_payment_intent_id, {}, {
+        idempotencyKey: `approve-${taskId}`,
+      })
 
       // Transfer runner payout to their Connect account
       if (task.runner_payout && task.runner_id) {
@@ -75,19 +99,30 @@ serve(async (req) => {
           .eq('id', task.runner_id)
           .single()
 
-        if (runner?.stripe_connect_id) {
-          await stripe.transfers.create({
-            amount: task.runner_payout,
-            currency: 'usd',
-            destination: runner.stripe_connect_id,
-            transfer_group: taskId,
-            metadata: { task_id: taskId },
-          })
+        if (!runner?.stripe_connect_id) {
+          console.error(`Runner ${task.runner_id} has no stripe_connect_id — cannot transfer payout`)
+          return new Response(
+            JSON.stringify({
+              error: 'Runner has not set up their payout method. Payment was captured but payout cannot be transferred. Please contact the runner to set up payouts.',
+            }),
+            { headers: { 'Content-Type': 'application/json' }, status: 400 },
+          )
         }
+
+        // Idempotency key prevents duplicate transfers on retry
+        await stripe.transfers.create({
+          amount: task.runner_payout,
+          currency: 'usd',
+          destination: runner.stripe_connect_id,
+          transfer_group: taskId,
+          metadata: { task_id: taskId },
+        }, {
+          idempotencyKey: `transfer-${taskId}`,
+        })
       }
     }
 
-    // Update task status
+    // Update task status — atomic check prevents race condition
     const { data: updated, error: updateError } = await serviceClient
       .from('tasks')
       .update({
@@ -95,6 +130,7 @@ serve(async (req) => {
         completed_at: new Date().toISOString(),
       })
       .eq('id', taskId)
+      .eq('status', 'deliverables_submitted')
       .select()
       .single()
 
@@ -107,18 +143,15 @@ serve(async (req) => {
       ? (task.runner_payout / 100).toFixed(2)
       : '0.00'
 
-    // Fetch names for notifications
-    const { data: agent } = await serviceClient
+    // Fetch names for notifications (batched query)
+    const { data: users } = await serviceClient
       .from('users')
-      .select('full_name')
-      .eq('id', user.id)
-      .single()
+      .select('id, full_name')
+      .in('id', [user.id, task.runner_id])
 
-    const { data: runnerUser } = await serviceClient
-      .from('users')
-      .select('full_name')
-      .eq('id', task.runner_id)
-      .single()
+    const userMap = Object.fromEntries((users ?? []).map((u: any) => [u.id, u.full_name]))
+    const agentName = userMap[user.id] ?? 'Agent'
+    const runnerName = userMap[task.runner_id] ?? 'Runner'
 
     // Notify runner: payment received
     await serviceClient.functions.invoke('send-notification', {
@@ -143,7 +176,7 @@ serve(async (req) => {
         data: {
           task_id: taskId,
           screen: 'review',
-          other_name: runnerUser?.full_name ?? 'Runner',
+          other_name: runnerName,
           category: task.category,
           address: task.property_address,
         },
@@ -157,7 +190,7 @@ serve(async (req) => {
         data: {
           task_id: taskId,
           screen: 'review',
-          other_name: agent?.full_name ?? 'Agent',
+          other_name: agentName,
           category: task.category,
           address: task.property_address,
         },

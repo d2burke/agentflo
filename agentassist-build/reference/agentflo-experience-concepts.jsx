@@ -1,0 +1,652 @@
+import React from "react";
+
+const TOKENS = {
+  ink: "#162238",
+  inkSoft: "#3E4B63",
+  paper: "#FFF9EF",
+  cream: "#F6EBDD",
+  chalk: "#FFFFFF",
+  coral: "#D14E3D",
+  coralSoft: "#F8D9D3",
+  sea: "#0D7B78",
+  seaSoft: "#D9F0EF",
+  amber: "#D39B3A",
+  amberSoft: "#F8E8C8",
+  navy: "#0F1B2D",
+  line: "#E6DAC9",
+  smoke: "#9AA4B5",
+  good: "#1F8A55",
+  goodSoft: "#DDF4E8",
+  warn: "#9A6208",
+  warnSoft: "#FCECCF",
+};
+
+const shellShadow = "0 30px 70px rgba(15,27,45,0.18), 0 1px 0 rgba(255,255,255,0.6) inset";
+const cardShadow = "0 10px 24px rgba(22,34,56,0.08)";
+
+const Icon = ({ glyph, bg = TOKENS.cream, color = TOKENS.ink }) => (
+  <div
+    style={{
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: bg,
+      color,
+      display: "grid",
+      placeItems: "center",
+      fontSize: 14,
+      fontWeight: 700,
+      flexShrink: 0,
+    }}
+  >
+    {glyph}
+  </div>
+);
+
+const Badge = ({ label, bg, color }) => (
+  <span
+    style={{
+      padding: "4px 10px",
+      borderRadius: 999,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: 0.2,
+      background: bg,
+      color,
+      whiteSpace: "nowrap",
+    }}
+  >
+    {label}
+  </span>
+);
+
+const DataRow = ({ left, right, muted }) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 8,
+      fontSize: 13,
+      color: muted ? TOKENS.smoke : TOKENS.ink,
+    }}
+  >
+    <span>{left}</span>
+    <span style={{ fontWeight: 700 }}>{right}</span>
+  </div>
+);
+
+const SoftCard = ({ children, tone = "cream", style }) => {
+  const background = tone === "chalk" ? TOKENS.chalk : tone === "sea" ? TOKENS.seaSoft : tone === "coral" ? TOKENS.coralSoft : TOKENS.cream;
+  return (
+    <div
+      style={{
+        background,
+        border: `1px solid ${TOKENS.line}`,
+        borderRadius: 16,
+        padding: 14,
+        boxShadow: cardShadow,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
+
+const Phone = ({ title, subtitle, children, accent }) => (
+  <div
+    className="aa-concept-phone"
+    style={{
+      width: "100%",
+      maxWidth: 390,
+      height: 820,
+      borderRadius: 40,
+      border: `7px solid ${TOKENS.navy}`,
+      background: TOKENS.paper,
+      boxShadow: shellShadow,
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+      margin: "0 auto",
+    }}
+  >
+    <div
+      style={{
+        height: 34,
+        position: "relative",
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: 130,
+          height: 32,
+          borderRadius: 20,
+          background: TOKENS.navy,
+          position: "absolute",
+          top: -1,
+          left: "50%",
+          transform: "translateX(-50%)",
+        }}
+      />
+    </div>
+
+    <div
+      style={{
+        padding: "16px 20px 12px",
+        borderBottom: `1px solid ${TOKENS.line}`,
+        background: `linear-gradient(180deg, ${accent} 0%, ${TOKENS.paper} 100%)`,
+      }}
+    >
+      <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 17, fontWeight: 700, color: TOKENS.ink }}>{title}</div>
+      <div style={{ fontSize: 12, color: TOKENS.inkSoft, marginTop: 3 }}>{subtitle}</div>
+    </div>
+
+    <div style={{ padding: 16, overflow: "auto", flex: 1 }}>{children}</div>
+
+    <div
+      style={{
+        position: "absolute",
+        bottom: 14,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: 132,
+        height: 5,
+        borderRadius: 4,
+        background: "rgba(15,27,45,0.16)",
+      }}
+    />
+  </div>
+);
+
+const ExperienceCard = ({ name, premise, children, delay = 0 }) => (
+  <section
+    className="aa-concept-screen"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div style={{ marginBottom: 12 }}>
+      <h3 style={{ margin: 0, color: TOKENS.paper, fontFamily: "'Space Grotesk', sans-serif", fontSize: 18 }}>{name}</h3>
+      <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.74)", fontSize: 13, lineHeight: 1.45 }}>{premise}</p>
+    </div>
+    {children}
+  </section>
+);
+
+const OnboardingExperience = () => (
+  <Phone
+    title="Trust-First Setup"
+    subtitle="Compress sign-up into one confidence-building surface"
+    accent={TOKENS.seaSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Icon glyph="ID" bg={TOKENS.seaSoft} color={TOKENS.sea} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: TOKENS.ink }}>Verification in progress</div>
+          <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>2 of 4 checks complete</div>
+        </div>
+        <Badge label="Live" bg={TOKENS.goodSoft} color={TOKENS.good} />
+      </div>
+      <div style={{ marginTop: 12, height: 8, background: TOKENS.cream, borderRadius: 99, overflow: "hidden" }}>
+        <div style={{ width: "56%", height: "100%", background: TOKENS.sea, borderRadius: 99 }} />
+      </div>
+    </SoftCard>
+
+    <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+      {[
+        ["Photo ID", "Uploaded", true],
+        ["License lookup", "Matched", true],
+        ["Brokerage", "Needs confirmation", false],
+        ["Payout setup", "Not started", false],
+      ].map(([label, status, complete]) => (
+        <SoftCard key={label}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: TOKENS.ink }}>{label}</div>
+            <Badge
+              label={status}
+              bg={complete ? TOKENS.goodSoft : TOKENS.warnSoft}
+              color={complete ? TOKENS.good : TOKENS.warn}
+            />
+          </div>
+        </SoftCard>
+      ))}
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>Finish setup</button>
+    <button className="aa-btn aa-btn-ghost" style={{ marginTop: 8 }}>Explore dashboard first</button>
+  </Phone>
+);
+
+const PostingExperience = () => (
+  <Phone
+    title="Task Composer"
+    subtitle="One-screen posting with structured brief blocks"
+    accent={TOKENS.amberSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: TOKENS.ink }}>Photography - 1280 Red River St</div>
+        <Badge label="Auto-save on" bg={TOKENS.seaSoft} color={TOKENS.sea} />
+      </div>
+      <DataRow left="When" right="Thu, 2:30 PM" />
+      <DataRow left="Access" right="Lockbox - 8931" muted />
+    </SoftCard>
+
+    <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
+      <SoftCard>
+        <div style={{ fontSize: 13, fontWeight: 700, color: TOKENS.ink, marginBottom: 6 }}>Shot list blocks</div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <DataRow left="Kitchen - wide + detail" right="Done" />
+          <DataRow left="Primary bedroom - 3 angles" right="Pending" muted />
+          <DataRow left="Twilight exterior" right="Required" />
+        </div>
+      </SoftCard>
+
+      <SoftCard tone="coral">
+        <div style={{ fontSize: 13, fontWeight: 700, color: TOKENS.ink, marginBottom: 8 }}>Price confidence</div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: TOKENS.inkSoft }}>
+          <span>Market range</span>
+          <span>$140 - $220</span>
+        </div>
+        <div style={{ marginTop: 8, height: 7, borderRadius: 99, background: TOKENS.chalk, position: "relative" }}>
+          <div style={{ position: "absolute", left: "58%", top: -4, width: 16, height: 16, borderRadius: 9, background: TOKENS.coral, boxShadow: "0 0 0 4px rgba(209,78,61,0.2)" }} />
+        </div>
+        <div style={{ marginTop: 8, fontSize: 22, fontWeight: 700, color: TOKENS.ink }}>$180</div>
+      </SoftCard>
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>Post for applicants</button>
+    <button className="aa-btn aa-btn-secondary" style={{ marginTop: 8 }}>Save as draft</button>
+  </Phone>
+);
+
+const AssignmentExperience = () => (
+  <Phone
+    title="Applicant Triage"
+    subtitle="Decision-oriented ranking for fast assignment"
+    accent={TOKENS.coralSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 700, color: TOKENS.ink }}>4 applicants - 18 minutes</div>
+          <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>Auto-ranked by fit, distance, and reliability</div>
+        </div>
+        <Badge label="SLA healthy" bg={TOKENS.goodSoft} color={TOKENS.good} />
+      </div>
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      {[
+        ["Maria Santos", "96 fit", "1.2 mi", "214 tasks", "Top pick"],
+        ["James Chen", "89 fit", "2.8 mi", "142 tasks", "Strong"],
+        ["Ashley Park", "84 fit", "4.1 mi", "93 tasks", "Good"],
+      ].map(([name, fit, distance, tasks, level], idx) => (
+        <SoftCard key={name} tone={idx === 0 ? "sea" : "cream"}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: 700, color: TOKENS.ink }}>{name}</div>
+              <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>{tasks} - {distance}</div>
+            </div>
+            <Badge
+              label={level}
+              bg={idx === 0 ? TOKENS.goodSoft : TOKENS.chalk}
+              color={idx === 0 ? TOKENS.good : TOKENS.inkSoft}
+            />
+          </div>
+          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+            <span style={{ color: TOKENS.inkSoft }}>Fit score</span>
+            <span style={{ fontWeight: 700, color: TOKENS.ink }}>{fit}</span>
+          </div>
+        </SoftCard>
+      ))}
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 12 }}>Assign Maria Santos</button>
+    <button className="aa-btn aa-btn-ghost" style={{ marginTop: 8 }}>Message all applicants</button>
+  </Phone>
+);
+
+const DiscoveryExperience = () => (
+  <Phone
+    title="Runner Discovery"
+    subtitle="Map-aware feed that prioritizes proximity and payout"
+    accent={TOKENS.seaSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ height: 110, borderRadius: 12, background: "linear-gradient(135deg, #D7ECE9 0%, #F4F8F7 100%)", border: `1px solid ${TOKENS.line}`, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 30%, rgba(13,123,120,0.2), transparent 30%), radial-gradient(circle at 70% 70%, rgba(209,78,61,0.2), transparent 26%)" }} />
+        <div style={{ position: "absolute", left: 28, top: 36, width: 10, height: 10, borderRadius: 6, background: TOKENS.sea }} />
+        <div style={{ position: "absolute", right: 50, top: 50, width: 10, height: 10, borderRadius: 6, background: TOKENS.coral }} />
+        <div style={{ position: "absolute", left: 16, bottom: 10, fontSize: 12, color: TOKENS.inkSoft }}>Downtown radius - 8 mi</div>
+      </div>
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      {[
+        ["Photography", "$185", "2.1 mi", "Apply by 3:00 PM"],
+        ["Showing", "$90", "1.0 mi", "Starts in 45 min"],
+        ["Inspection", "$140", "3.3 mi", "Needs licensed runner"],
+      ].map(([type, pay, dist, note]) => (
+        <SoftCard key={type}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontWeight: 700, color: TOKENS.ink }}>{type}</div>
+              <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>{dist} - {note}</div>
+            </div>
+            <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, color: TOKENS.coral }}>{pay}</div>
+          </div>
+        </SoftCard>
+      ))}
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>Apply to best match</button>
+  </Phone>
+);
+
+const ExecutionExperience = () => (
+  <Phone
+    title="On-Site Execution"
+    subtitle="Checklist-driven runner workflow with evidence capture"
+    accent={TOKENS.amberSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, color: TOKENS.ink }}>Showing - 501 W 6th St</div>
+        <Badge label="Live task" bg={TOKENS.goodSoft} color={TOKENS.good} />
+      </div>
+      <DataRow left="Check-in" right="2:04 PM" />
+      <DataRow left="Next milestone" right="Buyer notes" muted />
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      {[
+        ["GPS check-in", true],
+        ["Access confirmed", true],
+        ["Room-by-room walkthrough", false],
+        ["Buyer sentiment report", false],
+      ].map(([step, done]) => (
+        <SoftCard key={step}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: TOKENS.ink }}>{step}</div>
+            <Badge
+              label={done ? "Done" : "Pending"}
+              bg={done ? TOKENS.goodSoft : TOKENS.warnSoft}
+              color={done ? TOKENS.good : TOKENS.warn}
+            />
+          </div>
+        </SoftCard>
+      ))}
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>Upload evidence</button>
+    <button className="aa-btn aa-btn-secondary" style={{ marginTop: 8 }}>Message agent</button>
+  </Phone>
+);
+
+const ReviewExperience = () => (
+  <Phone
+    title="Deliverable Review"
+    subtitle="Approve faster with structured quality checkpoints"
+    accent={TOKENS.coralSoft}
+  >
+    <SoftCard tone="chalk">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            style={{
+              height: 60,
+              borderRadius: 10,
+              background: i % 2 === 0 ? "linear-gradient(135deg, #f5c9bf, #f7dfd9)" : "linear-gradient(135deg, #d8e9e7, #edf6f5)",
+              border: `1px solid ${TOKENS.line}`,
+            }}
+          />
+        ))}
+      </div>
+      <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>16 files - 2 annotations</div>
+        <Badge label="Revision optional" bg={TOKENS.warnSoft} color={TOKENS.warn} />
+      </div>
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      <SoftCard tone="sea">
+        <DataRow left="Task price" right="$180.00" />
+        <DataRow left="Platform fee" right="$21.60" muted />
+        <DataRow left="Runner payout" right="$158.40" />
+      </SoftCard>
+      <SoftCard>
+        <div style={{ fontSize: 13, color: TOKENS.inkSoft }}>Quality checklist</div>
+        <div style={{ marginTop: 6, fontSize: 13, color: TOKENS.ink }}>Composition, brightness, and room coverage passed.</div>
+      </SoftCard>
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>Approve & release payout</button>
+    <button className="aa-btn aa-btn-secondary" style={{ marginTop: 8 }}>Request one revision</button>
+  </Phone>
+);
+
+const MessagingExperience = () => (
+  <Phone
+    title="Task Messaging"
+    subtitle="Context-aware chat with structured quick replies"
+    accent={TOKENS.seaSoft}
+  >
+    <SoftCard tone="chalk">
+      <DataRow left="Task" right="Staging - 2200 Barton" />
+      <DataRow left="Urgency" right="Starts in 2h" muted />
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      <div style={{ justifySelf: "start", maxWidth: "80%", background: TOKENS.chalk, border: `1px solid ${TOKENS.line}`, borderRadius: "14px 14px 14px 4px", padding: "10px 12px", fontSize: 13, color: TOKENS.ink }}>
+        Are guest parking spots available for furniture drop-off?
+      </div>
+      <div style={{ justifySelf: "end", maxWidth: "80%", background: TOKENS.coral, color: "#fff", borderRadius: "14px 14px 4px 14px", padding: "10px 12px", fontSize: 13 }}>
+        Yes, use visitor lot B. I added a map pin in task notes.
+      </div>
+      <div style={{ justifySelf: "start", maxWidth: "80%", background: TOKENS.chalk, border: `1px solid ${TOKENS.line}`, borderRadius: "14px 14px 14px 4px", padding: "10px 12px", fontSize: 13, color: TOKENS.ink }}>
+        Great. I'll check in once unloading starts.
+      </div>
+    </div>
+
+    <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <Badge label="Send lockbox code" bg={TOKENS.cream} color={TOKENS.ink} />
+      <Badge label="Share ETA" bg={TOKENS.cream} color={TOKENS.ink} />
+      <Badge label="Attach photo" bg={TOKENS.cream} color={TOKENS.ink} />
+    </div>
+
+    <SoftCard tone="chalk" style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 13, color: TOKENS.smoke }}>Type a message...</div>
+    </SoftCard>
+  </Phone>
+);
+
+const EarningsExperience = () => (
+  <Phone
+    title="Payout & Reputation"
+    subtitle="Merge earnings, payout timing, and trust signals"
+    accent={TOKENS.amberSoft}
+  >
+    <SoftCard tone="sea">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 12, color: TOKENS.inkSoft }}>This week</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 28, fontWeight: 700, color: TOKENS.ink }}>$1,245</div>
+        </div>
+        <Badge label="Friday payout" bg={TOKENS.goodSoft} color={TOKENS.good} />
+      </div>
+    </SoftCard>
+
+    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+      <SoftCard>
+        <DataRow left="Pending transfer" right="$420.80" />
+        <DataRow left="Estimated deposit" right="Mar 6" muted />
+      </SoftCard>
+      <SoftCard>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontWeight: 700, color: TOKENS.ink }}>Reputation</div>
+          <div style={{ fontWeight: 700, color: TOKENS.ink }}>4.92 *</div>
+        </div>
+        <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+          <DataRow left="On-time rate" right="97%" />
+          <DataRow left="Repeat clients" right="63%" />
+          <DataRow left="Response speed" right="9 min" />
+        </div>
+      </SoftCard>
+    </div>
+
+    <button className="aa-btn aa-btn-primary" style={{ marginTop: 14 }}>View payout breakdown</button>
+    <button className="aa-btn aa-btn-ghost" style={{ marginTop: 8 }}>Share profile highlights</button>
+  </Phone>
+);
+
+export default function Agent FloExperienceConcepts() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        padding: "36px 18px 56px",
+        background:
+          "radial-gradient(circle at 14% 14%, rgba(209,78,61,0.18), transparent 36%), radial-gradient(circle at 84% 4%, rgba(13,123,120,0.18), transparent 28%), linear-gradient(180deg, #1D2A3F 0%, #101A2C 100%)",
+        fontFamily: "'Source Sans 3', sans-serif",
+      }}
+    >
+      <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap"
+        rel="stylesheet"
+      />
+
+      <style>{`
+        .aa-concept-wrap {
+          max-width: 1320px;
+          margin: 0 auto;
+        }
+        .aa-concept-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(260px, 1fr));
+          gap: 18px;
+          align-items: start;
+        }
+        .aa-concept-screen {
+          opacity: 0;
+          transform: translateY(16px);
+          animation: aaFadeUp 550ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .aa-concept-phone {
+          transition: transform 260ms ease, box-shadow 260ms ease;
+        }
+        .aa-concept-screen:hover .aa-concept-phone {
+          transform: translateY(-5px);
+          box-shadow: 0 34px 82px rgba(15,27,45,0.26), 0 1px 0 rgba(255,255,255,0.65) inset;
+        }
+        .aa-btn {
+          width: 100%;
+          border: none;
+          border-radius: 999px;
+          padding: 12px 14px;
+          font-family: 'Space Grotesk', sans-serif;
+          font-weight: 700;
+          letter-spacing: 0.2px;
+          cursor: pointer;
+        }
+        .aa-btn-primary {
+          background: ${TOKENS.coral};
+          color: #fff;
+          box-shadow: 0 8px 18px rgba(209,78,61,0.28);
+        }
+        .aa-btn-secondary {
+          background: ${TOKENS.chalk};
+          color: ${TOKENS.ink};
+          border: 1px solid ${TOKENS.line};
+        }
+        .aa-btn-ghost {
+          background: transparent;
+          color: ${TOKENS.inkSoft};
+          border: 1px dashed ${TOKENS.line};
+        }
+        @keyframes aaFadeUp {
+          to {
+            opacity: 1;
+            transform: translateY(0px);
+          }
+        }
+        @media (max-width: 1220px) {
+          .aa-concept-grid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+        }
+        @media (max-width: 700px) {
+          .aa-concept-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+
+      <div className="aa-concept-wrap">
+        <header style={{ marginBottom: 24 }}>
+          <p
+            style={{
+              margin: 0,
+              color: "rgba(255,255,255,0.72)",
+              fontSize: 12,
+              letterSpacing: 1.1,
+              textTransform: "uppercase",
+              fontWeight: 700,
+            }}
+          >
+            Agent Flo - Alternate Direction
+          </p>
+          <h1
+            style={{
+              margin: "6px 0 0",
+              color: TOKENS.paper,
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 32,
+              letterSpacing: -0.6,
+            }}
+          >
+            One Screen Per Experience
+          </h1>
+          <p style={{ margin: "10px 0 0", color: "rgba(255,255,255,0.78)", maxWidth: 760, lineHeight: 1.55 }}>
+            A concept set focused on clarity and trust at each step: onboarding, posting, application triage, runner discovery, execution,
+            deliverable review, messaging, and payouts.
+          </p>
+        </header>
+
+        <div className="aa-concept-grid">
+          <ExperienceCard name="1. Onboarding" premise="Move friction into a single confidence dashboard." delay={0}>
+            <OnboardingExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="2. Task Posting" premise="Composable brief blocks with transparent pricing guidance." delay={80}>
+            <PostingExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="3. Applicant Assignment" premise="Fast pick flow with rank cues and SLA context." delay={160}>
+            <AssignmentExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="4. Runner Discovery" premise="Location-first feed balancing distance and payout." delay={240}>
+            <DiscoveryExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="5. Task Execution" premise="Stepwise proof capture that reduces disputes later." delay={320}>
+            <ExecutionExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="6. Deliverable Review" premise="Review and release payment from one pane." delay={400}>
+            <ReviewExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="7. Messaging" premise="Context chat with structured quick actions." delay={480}>
+            <MessagingExperience />
+          </ExperienceCard>
+
+          <ExperienceCard name="8. Payouts" premise="Tie earnings and reputation into one trust surface." delay={560}>
+            <EarningsExperience />
+          </ExperienceCard>
+        </div>
+      </div>
+    </div>
+  );
+}
