@@ -2071,88 +2071,87 @@ Payout accounts receive earnings from completed tasks via Stripe Connect Express
 ### 12.17 Public Profile
 
 **Role:** Both (viewable by either role)
-**Route:** `/profile/:userId/public`
-**Presentation:** Pushed onto navigation stack. Tab bar hides when active, reappears on dismissal.
+**iOS Route:** Pushed via `DashboardDestination.publicProfile(userId:)` or `ProfileDestination.publicProfile`
+**Web Route:** `/u/:profile_slug` (public, no auth required)
+**Presentation:** Full-screen. Navigation bar hidden; custom translucent buttons over hero. Tab bar hides when active.
+**Implementation status:** Built (iOS: `PublicProfileReadOnlyView.swift`, Web: `app/u/[slug]/page.tsx`)
 
 #### Entry Points
 
-| Source | Back Button Label | Returns To |
+| Source | Back Button | Returns To |
 |---|---|---|
-| Profile tab → "View Public Profile" (self-view) | "Profile" | Profile Home (12.8), Profile tab stays active |
-| Task Detail → assigned runner card (assignment flow) | "Task" | Task Detail (12.5/12.6), Tasks tab stays active |
+| Profile tab → "View Public Profile" (self-view) | Chevron left | Profile Home (12.8), Profile tab stays active |
+| Task Detail → assigned runner card (assignment flow) | Chevron left | Task Detail (12.5/12.6), Dashboard tab stays active |
+| Web → direct URL `/u/:slug` | Browser back | N/A (standalone page) |
 
-#### Header Region
+#### Hero Region
 
-Full-width cover image (edge-to-edge within card frame, aspect ratio ~2:1). Default: auto-suggested from the user's best portfolio photo; user may upload a custom cover photo via profile edit. Dark gradient overlay for navigation legibility.
+Full-width gradient background (purple: `#2D1B3D` → `#3D2B4D` → `#4A3558`, diagonal), 260pt height. No cover photo in v1 — gradient serves as the default.
 
-**Floating navigation bar** over the header:
-- Translucent pill-style back button (rgba(0,0,0,0.3) with backdrop blur)
-- Three-dot overflow menu (share profile, report)
+**Floating navigation buttons** over the gradient (top, safe-area-inset):
+- **Back:** 40px circle, `navy` at 60% opacity, chevron-left icon, white
+- **Share:** 40px circle, same style, share icon
+- **More:** 40px circle, same style, ellipsis icon
 
-Scrollable content area overlaps the header by 48px, creating a card that rises out of the image.
+#### Avatar + Identity
 
-#### Identity Block
+**Avatar:** 120px circle with 4px white `surface` border, overlapping the hero bottom edge by ~60px. Falls back to initials on `red-light` background. Online indicator: 16px `green` circle with 2px `surface` border, offset bottom-right of avatar.
 
-Inside the top card, avatar pulls up into the header overlap zone:
+**Name + Verification:** Centered below avatar (72pt top padding to clear overlap). Name in `titleLG` (26px ExtraBold). Verified badge: `checkmark.shield.fill` icon in `red`, inline after name. Badge displays when `vetting_status = 'approved'`.
 
-- **Avatar:** 76px circle with 4px white `surface` border, `red`-to-#E8405A gradient fill, initials as placeholder. Online indicator (16px circle) at bottom-right: `green` when online, `slate-light` when offline. Online/offline derived from user's availability settings (see Section 12.15). Subtle shadow for depth against header.
-- **Name + Verification:** Name in 21px/700 with verified badge inline (checkmark-in-shield icon, `red`). Verified badge displays when all three criteria are met: photo uploaded, full name confirmed, real estate license validated via vetting (see Section 10.1).
-- **Subtitle:** "{City, ST} · Since {Month Year}" — location from `users.location_city`/`location_state`, tenure from `users.created_at`.
+**Location:** `mappin.circle.fill` icon + brokerage text (used as location proxy), `bodySM` typography, `slate` color. Centered below name.
 
-#### Service Tags
+#### Stats Card
 
-Horizontally wrapping pill tags below the identity block. `red` text on `red-light` background, `caption` typography (13px/500), pill radius (9999px). Tags map to the platform's task category taxonomy via `user_service_tags` (Section 13.2). User-managed from profile edit.
+White `surface` card, `card` radius, `card` shadow, below identity section with `sectionGap` top padding. Three-column layout separated by 1px `border` dividers:
 
-#### Stats Row
+| Stat | Icon | Label | Source |
+|---|---|---|---|
+| Average rating | `star.fill` | Rating | `public_profiles.avg_rating` |
+| Tasks completed | `checkmark.circle.fill` | Completed | `public_profiles.completed_tasks` |
+| Response time | `clock.fill` | Response | Placeholder: "< 15 min" (computed field pending) |
 
-Four-column bar on `border-light` background, 14px radius, below the tags:
+Each column: icon in 40px rounded-rect `red-light` background with `red` foreground, value in `titleMD`, label in `micro` `slate`.
 
-| Stat | Label | Format |
-|---|---|---|
-| Tasks completed | Tasks | Integer |
-| Average rating | Rating | Decimal (X.X) |
-| On-time rate | On-time | Percentage |
-| Repeat client rate | Repeat | Percentage |
+#### Tab Bar
 
-Percentile badges ("Top X%") display above the numeric value in `amber` text for users at or above the 10th percentile. Columns separated by 0.5px `border` dividers. Data sourced from `user_stats` materialized view (Section 13.2).
-
-#### Call-to-Action Buttons
-
-Two equally-weighted buttons, full card width, side-by-side with `sm` (8px) gap:
-
-- **Request Task** (primary): `red` fill, white text, calendar icon. Initiates task posting flow (Section 12.7) pre-assigned to this user.
-- **Message** (secondary): `surface` fill, 1.5px `border` color border, `navy` text, chat bubble icon. Opens direct message thread.
-
-Both: `body` typography (15px/600), 13px vertical padding, 12px border-radius.
-
-**Self-view behavior:** When viewing your own profile, CTAs are replaced with an "Edit Profile" primary button that navigates to Personal Information (Section 12.9).
-
-#### Tab Content
-
-Segmented control below the profile card. Active tab: `red` fill, white text. Inactive: transparent, `slate` text. Two tabs: **Reviews** and **About**.
-
-#### Reviews Tab
-
-**Summary Card:**
-- Aggregate rating (`display` typography, 36px/800), 5-star visual (`amber` fill), total review count
-- Horizontal bar chart: distribution across 1–5 stars, `amber` fill bars
-
-**Review Cards** (reverse-chronological):
-- Author: 34px avatar circle (initials), name (14px/600), brokerage affiliation (`caption`/`slate-light`)
-- Star rating + date (right-aligned)
-- Task type badge: `red` text on `red-light` pill
-- Review body: `body` typography (15px/400), 1.55 line-height, `slate` text
-- **Pagination:** First 10 reviews loaded. "Show More" button loads next 10. No infinite scroll.
+Three-segment custom control below stats card: **About** | **Reviews** | **Activity**. Active tab: `surface` background, `navy` text. Inactive: `border-light` background, `slate` text. `sm` corner radius with 1px `border` stroke. `captionSM` typography.
 
 #### About Tab
 
-Three content sections, each in its own card (14px radius):
+**Bio section:** `"ABOUT"` label in `micro` `red` with 1pt tracking. Bio text from `users.bio` (falls back to `headline` if bio is empty). `bodySM` typography, `navy` text, 4pt line spacing.
 
-**Bio:** Free-form text with preserved line breaks (white-space: pre-line). `body` typography, `slate` text, 1.6 line-height.
+**Specialties section:** `"SPECIALTIES"` label in `micro` `red`. Wrapping pill tags using `FlowLayout`. Each tag: `micro` `red` text, `red-light` background at 50% opacity, pill radius, 1px `red` border at 10% opacity. Tags sourced from `users.specialties` array, displayed via `TaskCategory.displayName`.
 
-**Task History:** Horizontal bar chart showing task count by category. Each row: category label, count, proportional progress bar (`red` gradient fill). Bars scale relative to total tasks. Data from `task_history_by_category` view (Section 13.2).
+**Info card:** `border-light` background, `card` radius, `screenPadding` internal padding. `"INFO"` header in `micro` `slate` with 1pt tracking. Row items separated by `Divider`:
 
-**Certifications & Equipment:** Checklist layout. Each item: `red` checkmark icon + `caption` typography `slate` text. Items cover professional licenses, camera/drone equipment, and insurance. Data from `user_certifications` table (Section 13.2).
+| Icon | Label | Value Source |
+|---|---|---|
+| `building.2.fill` | Role | "Licensed Real Estate Agent" / "Licensed Field Professional" |
+| `mappin.circle.fill` | Location | `users.brokerage` |
+| `clock.fill` | Member Since | `users.created_at` formatted as "MMM yyyy" |
+| `checkmark.circle.fill` | Completion Rate | Placeholder: "98%" (computed field pending) |
+| `star.fill` | On-Time Rate | Placeholder: "99%" (computed field pending) |
+
+Each row: 32px circle icon badge (`red` on `red-light`), label in `bodySM` `slate`, value in `captionSM` `navy` right-aligned.
+
+#### Reviews Tab
+
+Placeholder state when no reviews: circular `border-light` badge with star icon, review count text in `captionSM` `navy`, "Reviews coming soon" in `micro` `slate`.
+
+When reviews exist: reverse-chronological review cards. Each card: 5-star rating row (`amber` fill), date right-aligned, comment body in `bodySM` `navy`. Card has `surface` background, `cardPadding`, `card` radius. Pagination: first 10 reviews loaded.
+
+#### Activity Tab
+
+Placeholder state: circular `border-light` badge with clock icon, "No activity yet" in `captionSM` `navy`, "Recent activity will appear here" in `micro` `slate`.
+
+#### Bottom Action Bar
+
+Sticky bar pinned to bottom of screen. `surface` background with upward `card` shadow. `screenPadding` horizontal, `cardPadding` vertical. Three elements:
+
+- **Favorite:** 48px circle, `surface` fill, 1px `border` stroke (switches to `red` tint when favorited). Heart icon, `slate` (fills `red` when favorited).
+- **Send Task Request:** Flex-width `red` capsule, 48px height. Message icon + "Send Task Request" in `captionSM` white. Opens direct message thread. **Self-view:** replaced with "Edit Profile" `PillButton` navigating to public profile editor.
+- **Phone:** 48px circle, `navy` fill, white phone icon.
 
 ---
 
@@ -2787,12 +2786,16 @@ CREATE TABLE public.push_tokens (
 -- Public-facing profile (limited fields)
 CREATE VIEW public.public_profiles AS
 SELECT
-  id, full_name, avatar_url, role, brokerage,
+  id, full_name, avatar_url, role, brokerage, bio,
+  headline, specialties, profile_slug, is_public_profile_enabled,
   vetting_status = 'approved' AS is_verified,
   (SELECT ROUND(AVG(rating)::numeric, 1)
    FROM reviews WHERE reviewee_id = users.id) AS avg_rating,
   (SELECT COUNT(*)
-   FROM reviews WHERE reviewee_id = users.id) AS review_count
+   FROM reviews WHERE reviewee_id = users.id) AS review_count,
+  (SELECT COUNT(*)
+   FROM tasks WHERE runner_id = users.id AND status = 'completed') AS completed_tasks,
+  created_at
 FROM public.users;
 
 -- Runner task feed: available tasks within service areas
@@ -3421,15 +3424,27 @@ This section tracks what has been built and deployed for the iOS MVP.
 | Design system (colors, typography, spacing, shadows) | Built | `Theme/` directory |
 | Reusable components (PillButton, InputField, StatusBadge, etc.) | Built | `Theme/Components/` directory |
 | AvatarView component | Built | `Theme/Components/AvatarView.swift` |
+| Public Profile (read-only) | Built | `PublicProfileReadOnlyView.swift` — hero gradient, avatar overlap, stats card, About/Reviews/Activity tabs, sticky bottom bar with favorite + Send Task Request + phone |
 | Deep linking (URL scheme + handler) | Built | `Info.plist`, `Agent FloApp.swift` |
 | Centralized auth for edge functions | Built | `TaskService.authHeaders()` pattern |
 
-### 18.3 Not Yet Built
+### 18.3 Web App (Built)
+
+| Screen / Feature | Status | Key File(s) |
+|---|---|---|
+| Landing page | Built | `app/page.tsx` |
+| Auth (login, signup, forgot password) | Built | `app/(auth)/` |
+| Dashboard, Tasks, Messages, Notifications | Built | `app/(app)/` |
+| Profile settings (personal, payment, payout, security, notifications) | Built | `app/(app)/profile/` |
+| Open House public check-in | Built | `app/open-house/[id]/page.tsx` |
+| Public Profile | Built | `app/u/[slug]/page.tsx`, `public-profile-view.tsx` — server component fetches by slug from `public_profiles` view, client component renders full UI matching iOS design |
+
+### 18.4 Not Yet Built
 
 | Feature | Section | Priority |
 |---|---|---|
-| Open House check-in/check-out flow | — | Next |
-| Public Profile data integration (stats/tags/certifications) | 12.17, Appendix B | Next |
+| Open House check-in/check-out flow (iOS) | — | Next |
+| Public Profile computed stats (completion rate, on-time rate, response time) | 12.17, 13.2 | Next |
 | Push notifications (remote) | 10.4 | Future |
 | Deliverable photo gallery review | 12.5 | Future |
 | Service Areas persistence + geospatial matching integration | 12.14, 13.2 | Future |
@@ -3439,7 +3454,6 @@ This section tracks what has been built and deployed for the iOS MVP.
 | User certifications & service tags | 13.2, 12.17 | Future |
 | Profile completeness prompt | 12.8 | Future |
 | Admin vetting interface | 10.1 | Future |
-| Web app (React) | 11.6 | Future |
 
 ---
 
@@ -3774,13 +3788,21 @@ The mini spec prototype used iOS system colors (UIKit defaults) that differ from
 | # | Question | Resolution |
 |---|---|---|
 | 1 | Cover photo: custom upload or auto-generate? | Auto-suggest best portfolio shot as default; user may upload custom cover photo. |
-| 2 | Portfolio tab as third tab for deliverable samples? | No. Two tabs only (Reviews + About). |
+| 2 | Portfolio tab as third tab for deliverable samples? | No portfolio tab. Three tabs: About (primary), Reviews, Activity. About tab serves as default. |
 | 3 | Review pagination: infinite scroll vs. "Show more"? | "Show more" — loads 10 at a time. |
 | 4 | Availability/online indicator display? | Online dot derived from availability settings: green when within active availability window, gray otherwise. No manual toggle. |
 | 5 | Profile completeness progress indicator? | Yes — dismissible card on Profile Home (Section 12.8) with progress indicator and checklist of incomplete items. |
 | 6 | Verified badge criteria? | Three requirements: photo uploaded, full name confirmed, real estate license validated via vetting (Section 10.1). |
 
 ---
+
+### v1.3 (March 4, 2026)
+- **Section 12.17 (Public Profile):** Rewritten to match implemented design. Replaced cover photo header with purple gradient hero (v1 simplification). Updated avatar to 120px with overlap zone. Replaced 4-column stats row with 3-column card (Rating, Completed, Response). Changed tab layout from 2 tabs (Reviews + About) to 3 tabs (About + Reviews + Activity). About tab now includes bio section, specialties pills, and info card with role/location/member-since/completion-rate/on-time-rate rows. Added sticky bottom action bar with favorite, Send Task Request, and phone buttons. Added web route `/u/:profile_slug`.
+- **Section 13.2 (`public_profiles` view):** Extended to include `bio`, `headline`, `specialties`, `profile_slug`, `is_public_profile_enabled`, `completed_tasks`, and `created_at` fields. New migration: `20240118000001_public_profile_view_v2.sql`.
+- **Section 18.2 (iOS App):** Added `PublicProfileReadOnlyView.swift` as built.
+- **Section 18.3:** Renamed to "Web App (Built)" — added web implementation status table with all built screens including public profile at `/u/[slug]`.
+- **Section 18.4:** Renamed from 18.3. Moved "Public Profile data integration" from Not Yet Built; replaced with "Public Profile computed stats" for remaining placeholder fields (completion rate, on-time rate, response time).
+- **Data model (`PublicProfileFull`):** Added `bio: String?` and `createdAt: Date?` fields to both iOS (`Models.swift`) and web (`models.ts`) type definitions.
 
 ### v1.2 (March 3, 2026)
 - **Appendix B:** New — Public Profile Mini Spec. Full feature spec for the public-facing user profile with entry points from Profile tab (self-view) and Task Detail (assignment flow). Includes data model integration analysis resolving 6 proposed tables against existing schema, design token resolution mapping prototype iOS colors to canonical palette, and resolved open questions.
