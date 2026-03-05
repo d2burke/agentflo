@@ -21,7 +21,7 @@ interface AppStore {
 export const useAppStore = create<AppStore>((set) => ({
   // Initial state
   user: null,
-  isLoading: true,
+  isLoading: false,
   mfaVerified: false,
   sidebarCollapsed: false,
 
