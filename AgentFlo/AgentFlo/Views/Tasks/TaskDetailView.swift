@@ -23,6 +23,8 @@ struct TaskDetailView: View {
     @State private var showingReport: ShowingReport?
     @State private var showQRCode = false
     @State private var showVisitorDashboard = false
+    @State private var showReviewSheet = false
+    @State private var existingReview: Review?
 
     private var isAgent: Bool {
         appState.authService.currentUser?.role == .agent
@@ -68,6 +70,7 @@ struct TaskDetailView: View {
             .sheet(isPresented: $showStagingPhotos) { stagingPhotosSheet }
             .sheet(isPresented: $showQRCode) { qrCodeSheet }
             .sheet(isPresented: $showVisitorDashboard) { visitorDashboardSheet }
+            .sheet(isPresented: $showReviewSheet) { reviewSheet }
     }
 
     @ViewBuilder
@@ -155,6 +158,27 @@ struct TaskDetailView: View {
         if let task {
             OpenHouseVisitorDashboard(taskId: task.id)
                 .environment(appState)
+        }
+    }
+
+    @ViewBuilder
+    private var reviewSheet: some View {
+        if let task {
+            let otherName: String = {
+                if isAgent { return runnerProfile?.fullName ?? "the runner" }
+                else { return task.agentProfile?.fullName ?? "the agent" }
+            }()
+             ReviewSheet(task: task, revieweeName: otherName) {
+                showReviewSheet = false
+                Task {
+                    if let userId = appState.authService.currentUser?.id {
+                        existingReview = try? await appState.taskService.fetchReviewByUser(
+                            taskId: taskId, reviewerId: userId
+                        )
+                    }
+                }
+            }
+            .environment(appState)
         }
     }
 
@@ -337,6 +361,11 @@ struct TaskDetailView: View {
                         .foregroundStyle(.agentGreen)
                         .frame(maxWidth: .infinity)
                 }
+                if existingReview == nil {
+                    PillButton("Leave Review", variant: .secondary, icon: "star") {
+                        showReviewSheet = true
+                    }
+                }
             default:
                 EmptyView()
             }
@@ -373,6 +402,16 @@ struct TaskDetailView: View {
                     .font(.bodyEmphasis)
                     .foregroundStyle(.agentGreen)
                     .frame(maxWidth: .infinity)
+            case .completed:
+                Label("Completed", systemImage: "checkmark.seal.fill")
+                    .font(.bodyEmphasis)
+                    .foregroundStyle(.agentGreen)
+                    .frame(maxWidth: .infinity)
+                if existingReview == nil {
+                    PillButton("Leave Review", variant: .secondary, icon: "star") {
+                        showReviewSheet = true
+                    }
+                }
             default:
                 EmptyView()
             }
@@ -669,6 +708,13 @@ struct TaskDetailView: View {
             if let address = task?.propertyAddress, !address.isEmpty {
                 await geocodeAddress(address)
             }
+            // Check for existing review on completed tasks
+            if let status = task?.status, status == .completed,
+               let userId = appState.authService.currentUser?.id {
+                existingReview = try? await appState.taskService.fetchReviewByUser(
+                    taskId: taskId, reviewerId: userId
+                )
+            }
         } catch {
             showError("Failed to load task")
         }
@@ -707,6 +753,7 @@ struct TaskDetailView: View {
         do {
             try await appState.taskService.approveAndPay(taskId: taskId)
             await loadTask()
+            showReviewSheet = true
         } catch {
             showError(error.localizedDescription)
         }

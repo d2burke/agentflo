@@ -168,8 +168,9 @@ struct PublicProfileReadOnlyView: View {
     }
 
     private var reviewsTab: some View {
-        VStack(spacing: Spacing.lg) {
-            if reviews.isEmpty {
+        let textReviews = reviews.filter { $0.comment != nil && !$0.comment!.isEmpty }
+        return VStack(spacing: Spacing.lg) {
+            if textReviews.isEmpty {
                 VStack(spacing: Spacing.md) {
                     Image(systemName: "star")
                         .font(.system(size: 32))
@@ -181,7 +182,7 @@ struct PublicProfileReadOnlyView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.xxxxl)
             } else {
-                ForEach(reviews) { review in
+                ForEach(textReviews) { review in
                     reviewCard(review)
                 }
             }
@@ -189,7 +190,9 @@ struct PublicProfileReadOnlyView: View {
     }
 
     private func reviewCard(_ review: Review) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
+        let parsed = parseReviewComment(review.comment)
+
+        return VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 HStack(spacing: 2) {
                     ForEach(1...5, id: \.self) { star in
@@ -206,8 +209,39 @@ struct PublicProfileReadOnlyView: View {
                 }
             }
 
-            if let comment = review.comment, !comment.isEmpty {
-                Text(comment)
+            // Went well tags
+            if !parsed.wentWell.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(parsed.wentWell, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .foregroundStyle(.agentGreen)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, 4)
+                            .background(Color.agentGreenLight)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+
+            // Could improve tags
+            if !parsed.couldImprove.isEmpty {
+                FlowLayout(spacing: 6) {
+                    ForEach(parsed.couldImprove, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption)
+                            .foregroundStyle(.agentAmber)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, 4)
+                            .background(Color.agentAmberLight)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+
+            // Other text
+            if let other = parsed.other, !other.isEmpty {
+                Text(other)
                     .font(.bodySM)
                     .foregroundStyle(.agentNavy)
             }
@@ -215,6 +249,29 @@ struct PublicProfileReadOnlyView: View {
         .padding(Spacing.cardPadding)
         .background(.agentSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+    }
+
+    private struct ParsedReview {
+        var wentWell: [String] = []
+        var couldImprove: [String] = []
+        var other: String?
+    }
+
+    private func parseReviewComment(_ comment: String?) -> ParsedReview {
+        guard let comment, !comment.isEmpty else { return ParsedReview() }
+
+        // Try JSON parse first
+        if let data = comment.data(using: .utf8),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            var parsed = ParsedReview()
+            parsed.wentWell = (json["went_well"] as? [String]) ?? []
+            parsed.couldImprove = (json["could_improve"] as? [String]) ?? []
+            parsed.other = json["other"] as? String
+            return parsed
+        }
+
+        // Fallback: plain text
+        return ParsedReview(other: comment)
     }
 
     private func aboutTab(_ profile: PublicProfileFull) -> some View {

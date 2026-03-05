@@ -274,6 +274,33 @@ final class TaskService {
         return results.first
     }
 
+    // MARK: - Reviews
+
+    func submitReview(taskId: UUID, reviewerId: UUID, revieweeId: UUID, rating: Int, comment: String?) async throws {
+        try await supabase
+            .from("reviews")
+            .insert(NewReviewBody(
+                taskId: taskId,
+                reviewerId: reviewerId,
+                revieweeId: revieweeId,
+                rating: rating,
+                comment: comment
+            ))
+            .execute()
+    }
+
+    func fetchReviewByUser(taskId: UUID, reviewerId: UUID) async throws -> Review? {
+        let results: [Review] = try await supabase
+            .from("reviews")
+            .select()
+            .eq("task_id", value: taskId.uuidString)
+            .eq("reviewer_id", value: reviewerId.uuidString)
+            .limit(1)
+            .execute()
+            .value
+        return results.first
+    }
+
     // MARK: - User Profiles
 
     func fetchUserPublicProfile(userId: UUID) async throws -> PublicProfile {
@@ -505,6 +532,22 @@ private struct NewShowingReportBody: Encodable {
         case propertyFeedback = "property_feedback"
         case followUpNotes = "follow_up_notes"
         case nextSteps = "next_steps"
+    }
+}
+
+// Body for submitting a review
+private struct NewReviewBody: Encodable {
+    let taskId: UUID
+    let reviewerId: UUID
+    let revieweeId: UUID
+    let rating: Int
+    let comment: String?
+
+    enum CodingKeys: String, CodingKey {
+        case rating, comment
+        case taskId = "task_id"
+        case reviewerId = "reviewer_id"
+        case revieweeId = "reviewee_id"
     }
 }
 
