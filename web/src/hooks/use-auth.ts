@@ -9,36 +9,48 @@ export function useAuth() {
   const { user, isLoading, setUser, setLoading } = useAppStore()
 
   useEffect(() => {
-    const supabase = createClient()
+    let subscription: { unsubscribe: () => void } | null = null
 
-    // Get initial session
-    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
-      if (authUser) {
-        try {
-          const profile = await authService.fetchUserProfile(authUser.id)
-          setUser(profile)
-        } catch {
-          // Profile fetch failed — continue without user data
+    async function init() {
+      try {
+        const supabase = createClient()
+
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+
+        if (authUser) {
+          try {
+            const profile = await authService.fetchUserProfile(authUser.id)
+            setUser(profile)
+          } catch {
+            // Profile fetch failed — continue without user data
+          }
         }
-      }
-      setLoading(false)
-    }).catch(() => {
-      setLoading(false)
-    })
 
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const profile = await authService.fetchUserProfile(session.user.id)
-        setUser(profile)
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null)
+        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+              try {
+                const profile = await authService.fetchUserProfile(session.user.id)
+                setUser(profile)
+              } catch {
+                // ignore
+              }
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null)
+            }
+          },
+        )
+        subscription = sub
+      } catch {
+        // Supabase client creation or auth check failed
+      } finally {
+        setLoading(false)
       }
-    })
+    }
 
-    return () => subscription.unsubscribe()
+    init()
+
+    return () => subscription?.unsubscribe()
   }, [setUser, setLoading])
 
   return { user, isLoading }
