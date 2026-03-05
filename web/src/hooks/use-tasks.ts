@@ -15,6 +15,7 @@ export const taskKeys = {
   detail: (id: string) => [...taskKeys.all, 'detail', id] as const,
   deliverables: (taskId: string) => ['deliverables', taskId] as const,
   applications: (taskId: string) => ['applications', taskId] as const,
+  myReview: (taskId: string, userId: string) => ['review', taskId, userId] as const,
 }
 
 // ── Hooks ──
@@ -134,6 +135,32 @@ export function useStartTask() {
     mutationFn: (taskId: string) => taskService.startTask(taskId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: taskKeys.all })
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+}
+
+export function useMyReview(taskId: string, userId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: taskKeys.myReview(taskId, userId ?? ''),
+    queryFn: () => taskService.fetchUserReview(taskId, userId!),
+    enabled: !!taskId && !!userId && enabled,
+  })
+}
+
+export function useSubmitReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (params: {
+      taskId: string
+      reviewerId: string
+      revieweeId: string
+      rating: number
+      comment?: string | null
+    }) => taskService.submitReview(params),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: taskKeys.myReview(variables.taskId, variables.reviewerId) })
+      toast.success('Review submitted!')
     },
     onError: (err: Error) => toast.error(err.message),
   })
