@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "973RBN29J8.com.agentflo.app",
+        "appID": "973RBN29J8.app.agentflo",
         "paths": [
           "/tasks/*",
           "/messages/*",

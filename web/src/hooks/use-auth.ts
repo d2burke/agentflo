@@ -14,9 +14,15 @@ export function useAuth() {
     // Get initial session
     supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
       if (authUser) {
-        const profile = await authService.fetchUserProfile(authUser.id)
-        setUser(profile)
+        try {
+          const profile = await authService.fetchUserProfile(authUser.id)
+          setUser(profile)
+        } catch {
+          // Profile fetch failed — continue without user data
+        }
       }
+      setLoading(false)
+    }).catch(() => {
       setLoading(false)
     })
 
