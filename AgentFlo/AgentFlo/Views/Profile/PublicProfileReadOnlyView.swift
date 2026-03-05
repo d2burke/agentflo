@@ -193,19 +193,36 @@ struct PublicProfileReadOnlyView: View {
         let parsed = parseReviewComment(review.comment)
 
         return VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
+            // Reviewer info row
+            HStack(spacing: Spacing.md) {
+                CachedAvatarView(
+                    avatarPath: review.reviewer?.avatarUrl,
+                    name: review.reviewer?.fullName ?? "User",
+                    size: 36
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(review.reviewer?.fullName ?? "Anonymous")
+                        .font(.captionSM)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.agentNavy)
+
+                    if let date = review.createdAt {
+                        Text(relativeTime(from: date))
+                            .font(.caption)
+                            .foregroundStyle(.agentSlateLight)
+                    }
+                }
+
+                Spacer()
+
+                // Star rating
                 HStack(spacing: 2) {
                     ForEach(1...5, id: \.self) { star in
                         Image(systemName: star <= review.rating ? "star.fill" : "star")
                             .font(.system(size: 12))
                             .foregroundStyle(star <= review.rating ? .agentAmber : .agentSlateLight)
                     }
-                }
-                Spacer()
-                if let date = review.createdAt {
-                    Text(date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
-                        .foregroundStyle(.agentSlateLight)
                 }
             }
 
@@ -224,8 +241,8 @@ struct PublicProfileReadOnlyView: View {
                 }
             }
 
-            // Could improve tags
-            if !parsed.couldImprove.isEmpty {
+            // Could improve tags — only show for ratings below 4
+            if review.rating < 4 && !parsed.couldImprove.isEmpty {
                 FlowLayout(spacing: 6) {
                     ForEach(parsed.couldImprove, id: \.self) { tag in
                         Text(tag)
@@ -249,6 +266,12 @@ struct PublicProfileReadOnlyView: View {
         .padding(Spacing.cardPadding)
         .background(.agentSurface)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card))
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private struct ParsedReview {
@@ -319,7 +342,7 @@ struct PublicProfileReadOnlyView: View {
     private func fetchReviews(for userId: UUID) async throws -> [Review] {
         try await supabase
             .from("reviews")
-            .select()
+            .select("*, reviewer:users!reviewer_id(id, full_name, avatar_url)")
             .eq("reviewee_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .limit(10)
