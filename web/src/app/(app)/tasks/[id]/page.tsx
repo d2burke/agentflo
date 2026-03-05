@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   ArrowLeft, MapPin, Calendar, FileText, DollarSign,
   MessageSquare, User, AlertTriangle, CheckCircle, Clock,
-  Camera, Eye, Box, Home, ClipboardCheck, Play, LogIn, LogOut as LogOutIcon,
+  Camera, Eye, Box, Home, ClipboardCheck, Play, LogIn, LogOut as LogOutIcon, Star,
 } from 'lucide-react'
 import { PillButton } from '@/components/ui/pill-button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -19,10 +19,12 @@ import { CheckInCard } from '@/components/tasks/check-in-card'
 import { PhotoUpload } from '@/components/tasks/photo-upload'
 import { ShowingReportForm } from '@/components/tasks/showing-report-form'
 import { OpenHouseQR } from '@/components/tasks/open-house-qr'
+import { ReviewModal } from '@/components/tasks/review-modal'
 import { useAppStore } from '@/stores/app-store'
 import {
   useTask, useDeliverables, useApplications,
   useCancelTask, useApproveAndPay, useApplyForTask, useStartTask,
+  useMyReview,
 } from '@/hooks/use-tasks'
 import { formatPrice, formatPriceFull, formatDateTime, timeAgo, cn } from '@/lib/utils'
 import { TASK_CATEGORIES, PLATFORM_FEE_RATE } from '@/lib/constants'
@@ -45,6 +47,10 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelReason, setCancelReason] = useState('')
+  const [showReviewModal, setShowReviewModal] = useState(false)
+
+  const isCompleted = task?.status === 'completed'
+  const { data: existingReview } = useMyReview(id, user?.id, isCompleted)
 
   if (isLoading) return <LoadingSpinner message="Loading task..." />
   if (!task || !user) return null
@@ -271,8 +277,14 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 status={task.status}
                 taskId={task.id}
                 onCancel={() => setShowCancelModal(true)}
-                onApprove={() => approveAndPay.mutate(task.id)}
+                onApprove={() =>
+                  approveAndPay.mutate(task.id, {
+                    onSuccess: () => setShowReviewModal(true),
+                  })
+                }
                 approvingLoading={approveAndPay.isPending}
+                hasReview={!!existingReview}
+                onReview={() => setShowReviewModal(true)}
               />
             )}
 
@@ -288,6 +300,8 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
                 acceptLoading={applyForTask.isPending}
                 startLoading={startTask.isPending}
                 hasPayoutSetup={!!user?.stripe_connect_id}
+                hasReview={!!existingReview}
+                onReview={() => setShowReviewModal(true)}
               />
             )}
           </div>
@@ -330,6 +344,23 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
           </PillButton>
         </div>
       </Modal>
+
+      {/* Review modal */}
+      {task.status === 'completed' && (
+        <ReviewModal
+          open={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          taskId={task.id}
+          reviewerId={user.id}
+          revieweeId={isAgent ? (task.runner_id ?? '') : task.agent_id}
+          revieweeName={
+            isAgent
+              ? (task.agent?.full_name ?? 'the runner')
+              : (task.agent?.full_name ?? 'the agent')
+          }
+          category={meta?.label ?? task.category}
+        />
+      )}
     </div>
   )
 }
@@ -354,17 +385,28 @@ function AgentActions({
   onCancel,
   onApprove,
   approvingLoading,
+  hasReview,
+  onReview,
 }: {
   status: TaskStatus
   taskId: string
   onCancel: () => void
   onApprove: () => void
   approvingLoading: boolean
+  hasReview: boolean
+  onReview: () => void
 }) {
   if (status === 'completed') {
     return (
-      <div className="flex items-center gap-2 text-green text-sm font-semibold bg-green-light rounded-card p-4">
-        <CheckCircle className="h-5 w-5" /> Completed
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-green text-sm font-semibold bg-green-light rounded-card p-4">
+          <CheckCircle className="h-5 w-5" /> Completed
+        </div>
+        {!hasReview && (
+          <PillButton variant="secondary" fullWidth onClick={onReview} icon={<Star className="h-4 w-4" />}>
+            Leave Review
+          </PillButton>
+        )}
       </div>
     )
   }
@@ -397,6 +439,8 @@ function RunnerActions({
   acceptLoading,
   startLoading,
   hasPayoutSetup,
+  hasReview,
+  onReview,
 }: {
   status: TaskStatus
   taskId: string
@@ -407,6 +451,8 @@ function RunnerActions({
   acceptLoading: boolean
   startLoading: boolean
   hasPayoutSetup: boolean
+  hasReview: boolean
+  onReview: () => void
 }) {
   if (status === 'posted' && !isMyTask) {
     return (
@@ -444,8 +490,15 @@ function RunnerActions({
 
   if (status === 'completed') {
     return (
-      <div className="flex items-center gap-2 text-green text-sm font-semibold bg-green-light rounded-card p-4">
-        <CheckCircle className="h-5 w-5" /> Completed
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-green text-sm font-semibold bg-green-light rounded-card p-4">
+          <CheckCircle className="h-5 w-5" /> Completed
+        </div>
+        {!hasReview && isMyTask && (
+          <PillButton variant="secondary" fullWidth onClick={onReview} icon={<Star className="h-4 w-4" />}>
+            Leave Review
+          </PillButton>
+        )}
       </div>
     )
   }

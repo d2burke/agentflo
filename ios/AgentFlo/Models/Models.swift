@@ -481,9 +481,10 @@ struct Review: Codable, Identifiable {
     let rating: Int
     var comment: String?
     let createdAt: Date?
+    var reviewer: PublicProfile?
 
     enum CodingKeys: String, CodingKey {
-        case id, rating, comment
+        case id, rating, comment, reviewer
         case taskId = "task_id"
         case reviewerId = "reviewer_id"
         case revieweeId = "reviewee_id"

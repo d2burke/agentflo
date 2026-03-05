@@ -7,6 +7,7 @@ import type {
   ShowingReport,
   OpenHouseVisitor,
   PublicProfileFull,
+  Review,
 } from '@/types/models'
 
 // Supabase foreign-key joins return nested objects as arrays — normalize to single object
@@ -277,6 +278,39 @@ export const taskService = {
 
     if (error) throw error
     return data as PublicProfileFull
+  },
+
+  // ── Reviews ──
+
+  async submitReview(params: {
+    taskId: string
+    reviewerId: string
+    revieweeId: string
+    rating: number
+    comment?: string | null
+  }) {
+    const supabase = createClient()
+    const { error } = await supabase.from('reviews').insert({
+      task_id: params.taskId,
+      reviewer_id: params.reviewerId,
+      reviewee_id: params.revieweeId,
+      rating: params.rating,
+      comment: params.comment ?? null,
+    })
+    if (error) throw error
+  },
+
+  async fetchUserReview(taskId: string, reviewerId: string): Promise<Review | null> {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('reviews')
+      .select()
+      .eq('task_id', taskId)
+      .eq('reviewer_id', reviewerId)
+      .limit(1)
+
+    if (error) throw error
+    return (data as Review[])[0] ?? null
   },
 
   // ── Stripe ──
