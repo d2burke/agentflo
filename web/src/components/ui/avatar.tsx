@@ -1,4 +1,6 @@
-import Image from 'next/image'
+'use client'
+
+import { useState } from 'react'
 import { cn, getInitials } from '@/lib/utils'
 
 interface AvatarProps {
@@ -23,14 +25,18 @@ const PX_SIZES = {
 }
 
 export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
-  if (src) {
+  const [imgError, setImgError] = useState(false)
+
+  if (src && !imgError) {
     return (
-      <Image
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
         src={src}
         alt={name}
         width={PX_SIZES[size]}
         height={PX_SIZES[size]}
-        className={cn('rounded-full object-cover', SIZES[size], className)}
+        className={cn('rounded-full object-cover shrink-0', SIZES[size], className)}
+        onError={() => setImgError(true)}
       />
     )
   }
