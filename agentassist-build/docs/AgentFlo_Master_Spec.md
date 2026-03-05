@@ -588,7 +588,7 @@ All edge functions include CORS headers and handle `OPTIONS` preflight requests.
 - Stripe Connect integration for both payment source (agent) and payout destination (runner) — see Section 10.2
 - Escrow: funds held on task acceptance, released on agent approval
 - Payout schedule: weekly ACH to runner's connected bank account via Stripe
-- Agent and task runner rating system (post-task, 5-star + optional text)
+- Agent and task runner rating system (post-task, Lyft-style: 5-star + structured tag feedback + optional text; see Section 12.17 Reviews Tab)
 - Cancellation fee enforcement (percentage-based, configurable per market)
 - MFA via SMS OTP for all accounts — see Section 10.3
 - **Security:** Account lockout, password policy enforcement, third-party pentest, dependency scanning, CSP headers, photo ID encryption + auto-deletion — see Section 15.2
@@ -873,7 +873,8 @@ Derived from Rocket Mortgage brand identity. All text colors meet WCAG 2.1 AA co
 
 | Token | Hex | Usage |
 |---|---|---|
-| `navy` | `#0A1628` | Primary text, headings, dynamic island |
+| `navy` | `#0A1628` | Primary text, headings, dynamic island. Semantic color — flips to near-white in dark mode for text legibility. |
+| `navy-solid` | Light: `#0A1628` / Dark: `#122039` | Dark-mode-safe background fill. Stays dark in both modes. Used for: onboarding card background, outgoing message bubbles, selected filter pills, selected tag chips, visitor avatar backgrounds. |
 | `navy-light` | `#12203A` | Gradient start (onboarding/earnings cards) |
 | `navy-mid` | `#1A2D4D` | Gradient end, H3 text |
 | `slate` | `#64748B` | Body text, secondary icons |
@@ -1473,7 +1474,11 @@ Card reappears on next session if dismissed while steps remain incomplete. Card 
 
 **Recent Tasks List**
 - Section header: "Recent Tasks" with "View All" action link
-- Shows the 4 most recently created tasks, sorted by creation date descending
+- **Filter pills** below header: Active (default), Completed, All. Single-select, pill-shaped toggle buttons. Selected: `navy-solid` background, white text. Unselected: `surface` background, `slate` text, `border` stroke. Animated transition on tap.
+  - **Active:** Excludes completed tasks (`status != completed`). Default selection.
+  - **Completed:** Shows only completed tasks.
+  - **All:** Shows all tasks unfiltered.
+- Shows the 4 most recently created tasks matching the active filter, sorted by creation date descending
 - Each task renders as a Task Card (see Section 11.3 Component Library)
 - "View All" pushes Filtered Task List with `filter = all`
 - Tapping a task card pushes Task Detail (Section 12.5)
@@ -2138,11 +2143,33 @@ Segmented control below the profile card. Active tab: `red` fill, white text. In
 - Horizontal bar chart: distribution across 1–5 stars, `amber` fill bars
 
 **Review Cards** (reverse-chronological):
-- Author: 34px avatar circle (initials), name (14px/600), brokerage affiliation (`caption`/`slate-light`)
-- Star rating + date (right-aligned)
-- Task type badge: `red` text on `red-light` pill
-- Review body: `body` typography (15px/400), 1.55 line-height, `slate` text
+- Only reviews with non-empty comments are displayed; silent ratings (star-only) contribute to the aggregate score but are not shown in the list.
+- **Top row:** Reviewer 36px avatar (`CachedAvatarView`) + reviewer display name (`captionSM`/semibold/`navy`) + relative time (`caption`/`slate-light`, e.g. "2d ago") on left; 5-star rating on right (`12px`, `amber` fill / `slate-light` empty).
+- **Went-well tags:** Green capsule chips (`caption`/`green` text, `green-light` background). Always shown when present.
+- **Could-improve tags:** Amber capsule chips (`caption`/`amber` text, `amber-light` background). **Only shown when rating < 4 stars.** Hidden for 4–5 star reviews.
+- **Review text:** Free-form "other" text below tags (`bodySM`/`navy`). Shown when present.
+- **Comment storage:** The `comment` column stores structured JSON: `{"went_well":["tag1","tag2"],"could_improve":["tag3"],"other":"free text"}`. Falls back to plain text display if JSON parse fails.
+- Reviews are fetched with a reviewer profile join: `select("*, reviewer:users!reviewer_id(id, full_name, avatar_url)")`.
 - **Pagination:** First 10 reviews loaded. "Show More" button loads next 10. No infinite scroll.
+
+#### Review Submission (Lyft-style)
+
+Post-task review is presented as a modal sheet. UX modeled after Lyft's driver review flow.
+
+**Flow:**
+1. **Star rating** (required, 1–5): Large tappable stars (`36px`, `amber` fill). Must select before tags appear.
+2. **Primary tags section:**
+   - **4–5 stars:** Header: "What went well?" Tags: On time, Great communication, Quality work, Professional, Above & beyond, Followed instructions.
+   - **1–3 stars:** Header: "What could they have done better?" Same tags as above.
+3. **Improvement tags section:** Header: "What could have been improved?" Tags: Punctuality, Communication, Work quality, Professionalism, Following instructions. Shown for all ratings.
+4. **Other text field** (optional): Free-form textarea ("Share more details...").
+5. **Submit button:** Disabled until star rating selected. Only star rating is required; tags and text are optional.
+
+**Tag chips:** Capsule-shaped toggle buttons. Selected state: `navy-solid` background, white text. Unselected: `surface` background, `slate` text, `border` stroke. Uses `FlowLayout` for wrapping.
+
+**Auto-trigger:** Review sheet auto-opens after agent approves & pays. Also accessible via "Leave Review" button on completed task detail (both agent and runner roles). Button hidden once a review exists for the current user.
+
+**Data model:** Comment encoded as JSON in the existing `comment` TEXT column (no schema migration). If no tags or text selected, `comment` is NULL (silent rating).
 
 #### About Tab
 
@@ -2314,10 +2341,12 @@ Mutual post-task ratings. One review per person per task.
 | `reviewer_id` | `uuid` | NOT NULL, FK → users(id) | Who wrote it |
 | `reviewee_id` | `uuid` | NOT NULL, FK → users(id) | Who is being reviewed |
 | `rating` | `integer` | NOT NULL, CHECK 1–5 | |
-| `comment` | `text` | | Optional |
+| `comment` | `text` | | Optional; stores JSON: `{"went_well":[...],"could_improve":[...],"other":"..."}`. NULL for silent ratings. Falls back to plain text. |
 | `created_at` | `timestamptz` | DEFAULT now() | |
 
 **Unique constraint:** `(task_id, reviewer_id)`
+
+**Query pattern:** Reviews are fetched with reviewer profile join: `select("*, reviewer:users!reviewer_id(id, full_name, avatar_url)")`. The `Review` model includes an optional `reviewer: PublicProfile?` field.
 
 #### `vetting_records`
 Audit trail for identity and license verification.
@@ -2994,6 +3023,8 @@ mutation MarkNotificationsRead($ids: [UUID!]!) {
 }
 
 # Submit review
+# comment is JSON-encoded: {"went_well":["tag1"],"could_improve":["tag2"],"other":"text"}
+# or NULL for silent (star-only) ratings
 mutation SubmitReview(
   $taskId: UUID!, $revieweeId: UUID!,
   $rating: Int!, $comment: String
@@ -3421,20 +3452,31 @@ This section tracks what has been built and deployed for the iOS MVP.
 | Design system (colors, typography, spacing, shadows) | Built | `Theme/` directory |
 | Reusable components (PillButton, InputField, StatusBadge, etc.) | Built | `Theme/Components/` directory |
 | AvatarView component | Built | `Theme/Components/AvatarView.swift` |
-| Deep linking (URL scheme + handler) | Built | `Info.plist`, `Agent FloApp.swift` |
+| Deep linking (URL scheme + handler) | Built | `Info.plist`, `AgentFloApp.swift` |
 | Centralized auth for edge functions | Built | `TaskService.authHeaders()` pattern |
+| Rating & review system (Lyft-style) | Built | `ReviewSheet.swift` (iOS), `review-modal.tsx` (web) — Lyft-style star rating + tag chips + optional text. See Section 12.17 |
+| Review display on public profile | Built | `PublicProfileReadOnlyView.swift` — reviewer avatar, name, relative time, stars, went-well tags, conditional could-improve tags, review text |
+| Runner Public Profile | Built | `RunnerPublicProfileView.swift` — runner-facing profile with stats and portfolio |
+| Photography capture & upload | Built | `CameraView.swift`, `PhotoUploadView.swift`, `PhotoGalleryView.swift` — on-site photo capture, upload, gallery review |
+| Document upload & list | Built | `DocumentUploadView.swift`, `DocumentListView.swift` — non-photo deliverable upload and viewing |
+| Staging photo workflow | Built | `StagingPhotoView.swift`, `StagingComparisonView.swift` — room-by-room guided capture, before/after comparison |
+| Showing report form | Built | `ShowingReportForm.swift` — structured buyer feedback, interest level, follow-up notes |
+| Open House QR & visitor dashboard | Built | `OpenHouseQRView.swift`, `OpenHouseVisitorDashboard.swift` — QR generation, live check-in dashboard, interest tracking |
+| Check-in/check-out card | Built | `CheckInCheckOutCard.swift` — GPS-verified check-in/out timestamps and coordinates |
+| Inspection checklist & reporting | Built | `InspectionChecklistView.swift`, `InspectionReportView.swift`, `InspectionFindingForm.swift`, `InspectionSystemCard.swift` — ASHI 10-system checklist, findings form, tabbed report viewer |
+| Chat message bubble | Built | `MessageBubble.swift` — outgoing/incoming bubble styling with `navy-solid` background (dark-mode safe) |
 
 ### 18.3 Not Yet Built
 
 | Feature | Section | Priority |
 |---|---|---|
-| Open House check-in/check-out flow | — | Next |
+| ~~Open House check-in/check-out flow~~ | — | **Built** — see 18.2 |
 | Public Profile data integration (stats/tags/certifications) | 12.17, Appendix B | Next |
 | Push notifications (remote) | 10.4 | Future |
 | Deliverable photo gallery review | 12.5 | Future |
 | Service Areas persistence + geospatial matching integration | 12.14, 13.2 | Future |
 | Availability persistence + availability gating integration | 12.15, 13.2 | Future |
-| Rating & review system | 13.2, 12.17 | Future |
+| ~~Rating & review system~~ | 13.2, 12.17 | **Built** — see 18.2 |
 | Profile stats materialized view (`user_stats`) | 13.2 | Future |
 | User certifications & service tags | 13.2, 12.17 | Future |
 | Profile completeness prompt | 12.8 | Future |
