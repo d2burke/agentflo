@@ -277,6 +277,7 @@ struct PublicProfileFull: Codable, Identifiable {
     let avatarUrl: String?
     let role: UserRole
     let brokerage: String?
+    let bio: String?
     let headline: String?
     let specialties: [String]?
     let profileSlug: String?
@@ -285,9 +286,10 @@ struct PublicProfileFull: Codable, Identifiable {
     let avgRating: Double?
     let reviewCount: Int
     let completedTasks: Int
+    let createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
-        case id, role, brokerage, headline, specialties
+        case id, role, brokerage, bio, headline, specialties
         case fullName = "full_name"
         case avatarUrl = "avatar_url"
         case profileSlug = "profile_slug"
@@ -296,6 +298,7 @@ struct PublicProfileFull: Codable, Identifiable {
         case avgRating = "avg_rating"
         case reviewCount = "review_count"
         case completedTasks = "completed_tasks"
+        case createdAt = "created_at"
     }
 }
 
