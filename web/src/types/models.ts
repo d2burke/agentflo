@@ -107,7 +107,6 @@ export interface PublicProfileFull {
   avatar_url?: string | null
   role: UserRole
   brokerage?: string | null
-  bio?: string | null
   headline?: string | null
   specialties?: string[] | null
   profile_slug?: string | null
@@ -116,7 +115,6 @@ export interface PublicProfileFull {
   avg_rating?: number | null
   review_count: number
   completed_tasks: number
-  created_at?: string | null
 }
 
 // Deliverable
