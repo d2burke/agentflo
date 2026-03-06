@@ -106,7 +106,7 @@ final class PushNotificationService {
     func fetchAndRegisterFCMToken() async {
         // Don't register if no authenticated user — .onChange(of: currentUser?.id)
         // in AgentFloApp will call this again after login
-        guard (try? supabase.auth.session) != nil else {
+        guard (try? await supabase.auth.session) != nil else {
             print("[PushNotificationService] Skipping FCM token registration — no authenticated user")
             return
         }
@@ -125,7 +125,7 @@ final class PushNotificationService {
     fileprivate func handleTokenRefresh(_ newToken: String) {
         Task {
             // Don't register if no authenticated user
-            guard (try? supabase.auth.session) != nil else {
+            guard (try? await supabase.auth.session) != nil else {
                 print("[PushNotificationService] Skipping token refresh registration — no authenticated user")
                 return
             }
