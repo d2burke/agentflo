@@ -71,6 +71,10 @@ export async function requestPushPermissionAndRegister(): Promise<string | null>
 
 async function registerTokenWithBackend(token: string) {
   const supabase = createClient()
+
+  // Refresh the session first to ensure a valid JWT
+  await supabase.auth.refreshSession()
+
   const { error } = await supabase.functions.invoke('register-push-token', {
     body: { token, platform: 'web' },
   })
