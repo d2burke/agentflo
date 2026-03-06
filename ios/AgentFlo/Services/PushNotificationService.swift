@@ -140,8 +140,8 @@ final class PushNotificationService {
     }
 
     private func registerTokenWithBackend(_ token: String) async throws {
-        // Refresh session to ensure a valid JWT (same fix as web/firebase.ts)
-        _ = try await supabase.auth.refreshSession()
+        // Best-effort session refresh — don't block if it fails (fresh login tokens are already valid)
+        _ = try? await supabase.auth.refreshSession()
         try await supabase.functions.invoke(
             "register-push-token",
             options: .init(body: [
