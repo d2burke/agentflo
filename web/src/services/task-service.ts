@@ -7,6 +7,7 @@ import type {
   ShowingReport,
   OpenHouseVisitor,
   PublicProfileFull,
+  PortfolioImage,
   Review,
 } from '@/types/models'
 
@@ -278,6 +279,46 @@ export const taskService = {
 
     if (error) throw error
     return data as PublicProfileFull
+  },
+
+  async fetchPublicProfileBySlug(slug: string): Promise<PublicProfileFull | null> {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('public_profiles')
+      .select()
+      .eq('profile_slug', slug)
+      .single()
+
+    if (error) return null
+    return data as PublicProfileFull
+  },
+
+  async fetchReviewsForUser(userId: string): Promise<(Review & { reviewer?: { full_name: string; avatar_url?: string | null } })[]> {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('*, reviewer:users!reviewer_id(full_name, avatar_url)')
+      .eq('reviewee_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (error) throw error
+    return (data ?? []).map((row: any) => {
+      if (Array.isArray(row.reviewer)) row.reviewer = row.reviewer[0] ?? null
+      return row
+    })
+  },
+
+  async fetchPortfolioImages(userId: string): Promise<import('@/types/models').PortfolioImage[]> {
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('portfolio_images')
+      .select()
+      .eq('runner_id', userId)
+      .order('sort_order')
+
+    if (error) throw error
+    return (data ?? []) as import('@/types/models').PortfolioImage[]
   },
 
   // ── Reviews ──

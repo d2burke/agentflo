@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Bell } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle } from 'lucide-react'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppStore } from '@/stores/app-store'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { getPushPermissionState, requestPushPermissionAndRegister } from '@/lib/firebase'
 import type { NotificationPreferences } from '@/types/models'
 
 const PREF_LABELS: { key: keyof Omit<NotificationPreferences, 'user_id'>; label: string; description: string }[] = [
@@ -71,6 +72,23 @@ export default function NotificationPreferencesPage() {
     setPrefs({ ...prefs, [key]: !prefs[key] })
   }
 
+  const [pushState, setPushState] = useState<NotificationPermission | 'unsupported'>('default')
+  const [enablingPush, setEnablingPush] = useState(false)
+
+  useEffect(() => {
+    setPushState(getPushPermissionState())
+  }, [])
+
+  async function handleEnablePush() {
+    setEnablingPush(true)
+    try {
+      await requestPushPermissionAndRegister()
+      setPushState(getPushPermissionState())
+    } finally {
+      setEnablingPush(false)
+    }
+  }
+
   if (!user || !prefs) return null
 
   return (
@@ -83,6 +101,32 @@ export default function NotificationPreferencesPage() {
       </button>
 
       <h1 className="text-2xl font-extrabold text-navy mb-6">Notification Preferences</h1>
+
+      {/* Push notification status */}
+      {pushState !== 'unsupported' && (
+        <div className="bg-surface border border-border rounded-card px-5 py-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Bell className="h-5 w-5 text-red" />
+            <div>
+              <p className="text-sm font-medium text-navy">Push Notifications</p>
+              <p className="text-xs text-slate">
+                {pushState === 'granted'
+                  ? 'Enabled — you will receive push notifications'
+                  : pushState === 'denied'
+                    ? 'Blocked — enable in browser settings'
+                    : 'Not enabled'}
+              </p>
+            </div>
+          </div>
+          {pushState === 'granted' ? (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          ) : pushState === 'default' ? (
+            <PillButton size="sm" loading={enablingPush} onClick={handleEnablePush}>
+              Enable
+            </PillButton>
+          ) : null}
+        </div>
+      )}
 
       <div className="bg-surface border border-border rounded-card divide-y divide-border">
         {PREF_LABELS.map(({ key, label, description }) => (

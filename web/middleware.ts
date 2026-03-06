@@ -47,10 +47,26 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith('/messages') ||
       pathname.startsWith('/profile')
 
-    if (!user && isAppRoute) {
+    const isAdminRoute = pathname.startsWith('/admin')
+
+    if (!user && (isAppRoute || isAdminRoute)) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
+    }
+
+    if (user && isAdminRoute) {
+      const { data: profile } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.is_admin) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
     }
 
     if (user && isAuthRoute) {

@@ -24,6 +24,7 @@ export interface AppUser {
   specialties?: string[] | null
   profile_slug?: string | null
   is_public_profile_enabled?: boolean | null
+  is_admin?: boolean
   created_at?: string | null
   updated_at?: string | null
 }
@@ -109,8 +110,10 @@ export interface PublicProfileFull {
   brokerage?: string | null
   headline?: string | null
   specialties?: string[] | null
+  bio?: string | null
   profile_slug?: string | null
   is_public_profile_enabled?: boolean | null
+  created_at?: string | null
   is_verified: boolean
   avg_rating?: number | null
   review_count: number
@@ -286,6 +289,27 @@ export interface Availability {
   start_time: string
   end_time: string
   is_active: boolean
+}
+
+// Vetting Record (admin interface)
+
+export interface VettingRecord {
+  id: string
+  user_id: string
+  type: 'license' | 'photo_id' | 'brokerage' | 'background_check'
+  status: 'pending' | 'approved' | 'rejected'
+  submitted_data?: Record<string, string> | null
+  reviewer_notes?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
+  expires_at?: string | null
+  created_at?: string | null
+}
+
+// Admin: User with nested vetting records
+
+export interface AdminUserDetail extends AppUser {
+  vetting_records: VettingRecord[]
 }
 
 // Notification Preferences
