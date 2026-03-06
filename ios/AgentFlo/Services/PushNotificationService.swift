@@ -102,7 +102,15 @@ final class PushNotificationService {
     }
 
     /// Fetch the current FCM token and register it with the backend.
+    /// Silently skips if no authenticated user (token will be registered on login).
     func fetchAndRegisterFCMToken() async {
+        // Don't register if no authenticated user — .onChange(of: currentUser?.id)
+        // in AgentFloApp will call this again after login
+        guard (try? supabase.auth.session) != nil else {
+            print("[PushNotificationService] Skipping FCM token registration — no authenticated user")
+            return
+        }
+
         do {
             let fcmToken = try await Messaging.messaging().token()
             try await registerTokenWithBackend(fcmToken)
@@ -113,8 +121,15 @@ final class PushNotificationService {
     }
 
     /// Called when Firebase Messaging refreshes the FCM token.
+    /// Silently skips if no authenticated user (token will be registered on login).
     fileprivate func handleTokenRefresh(_ newToken: String) {
         Task {
+            // Don't register if no authenticated user
+            guard (try? supabase.auth.session) != nil else {
+                print("[PushNotificationService] Skipping token refresh registration — no authenticated user")
+                return
+            }
+
             do {
                 try await registerTokenWithBackend(newToken)
                 print("[PushNotificationService] Refreshed FCM token registered: \(newToken.prefix(20))...")
