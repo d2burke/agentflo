@@ -18,7 +18,7 @@ struct PushPermissionView: View {
 
             // Headline
             Text("Never miss a task update")
-                .font(.titleLarge)
+                .font(.titleLG)
                 .foregroundStyle(.agentNavy)
                 .multilineTextAlignment(.center)
 
@@ -62,7 +62,7 @@ struct PushPermissionView: View {
             Button("Not Now") {
                 appState.pushService.dismissPrePrompt()
             }
-            .font(.bodyRegular)
+            .font(.bodySM)
             .foregroundStyle(.agentSlate)
         }
         .padding(Spacing.xl)

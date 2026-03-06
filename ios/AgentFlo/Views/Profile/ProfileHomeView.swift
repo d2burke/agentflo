@@ -21,6 +21,8 @@ struct ProfileHomeView: View {
 
                 // Menu items
                 VStack(spacing: 0) {
+                    VerificationMenuItem()
+
                     ProfileMenuItem(icon: "person.fill", title: "Personal Information", destination: .personalInfo)
 
                     if isAgent {
@@ -185,6 +187,69 @@ struct ProfileHomeView: View {
             errorMessage = "Upload failed: \(error.localizedDescription)"
             showError = true
         }
+    }
+}
+
+struct VerificationMenuItem: View {
+    @Environment(AppState.self) private var appState
+
+    private var status: VettingStatus { appState.authService.currentUser?.vettingStatus ?? .notStarted }
+
+    var body: some View {
+        Button {
+            appState.profilePath.append(ProfileDestination.verification)
+        } label: {
+            HStack(spacing: Spacing.lg) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(status == .approved ? .green : .agentRed)
+                    .frame(width: 24)
+                Text("Account Verification")
+                    .font(.body)
+                    .foregroundStyle(.agentNavy)
+                Spacer()
+
+                // Status badge
+                switch status {
+                case .notStarted:
+                    Text("ACTION NEEDED")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .foregroundStyle(.red)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(Capsule())
+                case .pending:
+                    Text("UNDER REVIEW")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .foregroundStyle(.orange)
+                        .background(Color.orange.opacity(0.1))
+                        .clipShape(Capsule())
+                case .approved:
+                    Text("VERIFIED")
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .foregroundStyle(.green)
+                        .background(Color.green.opacity(0.1))
+                        .clipShape(Capsule())
+                default:
+                    EmptyView()
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.agentSlateLight)
+            }
+            .padding(.horizontal, Spacing.cardPadding)
+            .padding(.vertical, Spacing.xl)
+        }
+        .buttonStyle(.plain)
+
+        Divider()
+            .padding(.leading, Spacing.cardPadding + 40)
     }
 }
 

@@ -71,6 +71,8 @@ struct MainTabView: View {
     @ViewBuilder
     private func profileDestinationView(for destination: ProfileDestination) -> some View {
         switch destination {
+        case .verification:
+            VerificationView()
         case .personalInfo:
             PersonalInfoView()
         case .paymentMethods:

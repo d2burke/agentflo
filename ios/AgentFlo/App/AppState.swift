@@ -71,6 +71,7 @@ enum NotificationDestination: Hashable {
 }
 
 enum ProfileDestination: Hashable {
+    case verification
     case personalInfo
     case paymentMethods
     case payoutSettings

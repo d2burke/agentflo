@@ -4,16 +4,17 @@ import UIKit
 import Supabase
 
 @Observable
-final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate {
+final class PushNotificationService {
     var permissionStatus: UNAuthorizationStatus = .notDetermined
     var showPrePrompt = false
 
     private let lastPromptKey = "lastPushPromptDate"
     private let promptCooldownDays = 7
+    private let coordinator = PushNotificationCoordinator()
 
-    override init() {
-        super.init()
-        UNUserNotificationCenter.current().delegate = self
+    init() {
+        coordinator.service = self
+        UNUserNotificationCenter.current().delegate = coordinator
         Task { await refreshPermissionStatus() }
     }
 
@@ -47,9 +48,10 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     }
 
     /// User tapped "Enable Notifications" on our pre-prompt UI
+    @discardableResult
     func requestPermission() async -> Bool {
         UserDefaults.standard.set(Date(), forKey: lastPromptKey)
-        showPrePrompt = false
+        await MainActor.run { showPrePrompt = false }
 
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(
@@ -96,32 +98,10 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
 
     // MARK: - Notification Handling
 
-    /// Called when notification tapped (app was in background/closed)
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        let userInfo = response.notification.request.content.userInfo
-        handleNotificationPayload(userInfo)
-        completionHandler()
-    }
-
-    /// Called when notification arrives while app is in foreground
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .sound, .badge])
-    }
-
-    private func handleNotificationPayload(_ userInfo: [AnyHashable: Any]) {
-        // Deep link based on notification data
+    fileprivate func handleNotificationPayload(_ userInfo: [AnyHashable: Any]) {
         guard let taskIdString = userInfo["task_id"] as? String,
               let taskId = UUID(uuidString: taskIdString) else { return }
 
-        // Post notification for AppState to handle deep linking
         NotificationCenter.default.post(
             name: .pushNotificationTapped,
             object: nil,
@@ -134,6 +114,30 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+// MARK: - Coordinator (NSObject delegate separate from @Observable)
+
+private class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDelegate {
+    weak var service: PushNotificationService?
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        service?.handleNotificationPayload(userInfo)
+        completionHandler()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound, .badge])
     }
 }
 

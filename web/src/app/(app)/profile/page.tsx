@@ -5,11 +5,12 @@ import { useAppStore } from '@/stores/app-store'
 import { authService } from '@/services/auth-service'
 import { Avatar } from '@/components/ui/avatar'
 import {
-  User, CreditCard, Wallet, Shield, Bell, ChevronRight, LogOut,
+  User, CreditCard, Wallet, Shield, Bell, ChevronRight, LogOut, BadgeCheck, Clock, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MENU_ITEMS = [
+  { href: '/profile/verification', label: 'Account Verification', icon: BadgeCheck, isVetting: true },
   { href: '/profile/personal', label: 'Personal Info', icon: User },
   { href: '/profile/payment', label: 'Payment Methods', icon: CreditCard },
   { href: '/profile/payout', label: 'Payout Settings', icon: Wallet, runnerOnly: true },
@@ -58,6 +59,21 @@ export default function ProfilePage() {
             >
               <item.icon className="h-5 w-5 text-slate" />
               <span className="flex-1 text-sm font-medium text-navy">{item.label}</span>
+              {item.isVetting && user.vetting_status === 'not_started' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-badge text-[10px] font-bold uppercase bg-red-50 text-red-600">
+                  <AlertCircle className="h-3 w-3" />Action needed
+                </span>
+              )}
+              {item.isVetting && user.vetting_status === 'pending' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-badge text-[10px] font-bold uppercase bg-amber-50 text-amber-700">
+                  <Clock className="h-3 w-3" />Under review
+                </span>
+              )}
+              {item.isVetting && user.vetting_status === 'approved' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-badge text-[10px] font-bold uppercase bg-green-50 text-green-700">
+                  Verified
+                </span>
+              )}
               <ChevronRight className="h-4 w-4 text-slate" />
             </button>
           ))}
