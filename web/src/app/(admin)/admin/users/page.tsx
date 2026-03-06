@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useAllUsers } from '@/hooks/use-admin'
@@ -20,6 +20,14 @@ const FILTER_TABS: Array<{ label: string; value: VettingStatus | undefined }> = 
 ]
 
 export default function AllUsersPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner message="Loading..." />}>
+      <AllUsersContent />
+    </Suspense>
+  )
+}
+
+function AllUsersContent() {
   const searchParams = useSearchParams()
   const initialStatus = searchParams.get('status') as VettingStatus | null
   const [filter, setFilter] = useState<VettingStatus | undefined>(initialStatus ?? undefined)
