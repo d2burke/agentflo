@@ -65,13 +65,13 @@ Agent Flo is a marketplace that enables solo and small-team real estate agents t
 
 ## 4. User Roles
 
-### Agent (Primary User)
+### Posting Agent (Primary User)
 - Posts tasks that need to be completed at properties
 - Manages payment sources
 - Reviews task runner deliverables
 - Primary design focus of the app
 
-### Task Runner (Service Provider)
+### Runner Agent (Service Provider)
 - Browses available tasks and submits applications
 - Must be a licensed real estate agent
 - Submits deliverables (photos, confirmation of showings, etc.)
@@ -131,7 +131,7 @@ The app uses a **deep link paradigm** for all cross-context navigation. Any scre
 #### Deep Link Model
 A deep link is a `(tab, screen)` tuple:
 - `deepLink("Profile", "notifSettings")` → switches to Profile tab, pushes Notification Settings
-- `deepLink("Dashboard", null)` → switches to Dashboard tab at root
+- `deepLink("Dashboard", allTasks)` → switches to Dashboard tab at root
 - `deepLink("Profile", "security")` → switches to Profile tab, pushes Account & Security
 
 #### Cross-Tab Navigation Rules

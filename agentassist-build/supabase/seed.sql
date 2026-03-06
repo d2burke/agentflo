@@ -54,12 +54,12 @@ VALUES
 -- ============================================================
 -- USERS
 -- ============================================================
-INSERT INTO public.users (id, role, email, full_name, phone, brokerage, license_number, license_state, vetting_status, onboarding_completed_steps) VALUES
-  (agent1_id, 'agent', 'daniel@example.com', 'Daniel Mitchell', '+15125551001', 'Keller Williams Austin', 'TX-789456', 'TX', 'approved', ARRAY['photo','brokerage','license','payment','first_task']),
-  (agent2_id, 'agent', 'sarah@example.com', 'Sarah Chen', '+12125551002', 'Compass NYC', 'NY-123789', 'NY', 'approved', ARRAY['photo','brokerage','license','payment']),
-  (runner1_id, 'runner', 'marcus@example.com', 'Marcus Johnson', '+15125551003', 'eXp Realty', 'TX-456123', 'TX', 'approved', ARRAY['photo','license','payout','service_area']),
-  (runner2_id, 'runner', 'elena@example.com', 'Elena Rodriguez', '+15125551004', 'RE/MAX Austin', 'TX-321654', 'TX', 'approved', ARRAY['photo','license','payout','service_area']),
-  (runner3_id, 'runner', 'james@example.com', 'James Park', '+12125551005', NULL, NULL, NULL, 'pending', ARRAY['photo']);
+INSERT INTO public.users (id, role, email, full_name, phone, brokerage, license_number, license_state, vetting_status, onboarding_completed_steps, is_admin) VALUES
+  (agent1_id, 'agent', 'daniel@example.com', 'Daniel Mitchell', '+15125551001', 'Keller Williams Austin', 'TX-789456', 'TX', 'approved', ARRAY['photo','brokerage','license','payment','first_task'], true),
+  (agent2_id, 'agent', 'sarah@example.com', 'Sarah Chen', '+12125551002', 'Compass NYC', 'NY-123789', 'NY', 'approved', ARRAY['photo','brokerage','license','payment'], false),
+  (runner1_id, 'runner', 'marcus@example.com', 'Marcus Johnson', '+15125551003', 'eXp Realty', 'TX-456123', 'TX', 'approved', ARRAY['photo','license','payout','service_area'], false),
+  (runner2_id, 'runner', 'elena@example.com', 'Elena Rodriguez', '+15125551004', 'RE/MAX Austin', 'TX-321654', 'TX', 'approved', ARRAY['photo','license','payout','service_area'], false),
+  (runner3_id, 'runner', 'james@example.com', 'James Park', '+12125551005', NULL, 'TX-999888', 'TX', 'pending', ARRAY['photo'], false);
 
 -- ============================================================
 -- SERVICE AREAS
@@ -168,7 +168,9 @@ INSERT INTO public.vetting_records (user_id, type, status, submitted_data, revie
   (runner1_id, 'license', 'approved', '{"license_number": "TX-456123", "state": "TX", "expiry": "2027-03-15"}', now() - interval '30 days'),
   (runner1_id, 'photo_id', 'approved', '{"file_url": "/vetting/runner1/id.jpg"}', now() - interval '30 days'),
   (runner2_id, 'license', 'approved', '{"license_number": "TX-321654", "state": "TX", "expiry": "2026-11-30"}', now() - interval '20 days'),
-  (runner3_id, 'license', 'pending', '{"license_number": null, "state": null}', NULL);
+  (runner3_id, 'license', 'pending', '{"license_number": "TX-999888", "state": "TX", "expiry": "2028-01-15"}', NULL),
+  (runner3_id, 'photo_id', 'pending', '{"file_url": "/vetting/runner3/drivers-license.jpg"}', NULL),
+  (runner3_id, 'brokerage', 'pending', '{"brokerage_name": "Century 21 Austin", "office_phone": "+15125559000"}', NULL);
 
 -- ============================================================
 -- NOTIFICATIONS

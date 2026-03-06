@@ -18,16 +18,29 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.14.0?target=deno'
+import { handleCorsPreFlight, getCorsHeaders } from '../_shared/cors.ts'
+import { checkRateLimit } from '../_shared/rate-limit.ts'
+import { isValidUUID, sanitizeString } from '../_shared/validation.ts'
 
 const CANCELLABLE_STATUSES = ['draft', 'posted', 'accepted', 'in_progress']
 
 serve(async (req) => {
+  const corsResponse = handleCorsPreFlight(req)
+  if (corsResponse) return corsResponse
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+
   try {
-    const { taskId, reason } = await req.json()
+    const { taskId, reason: rawReason } = await req.json()
 
     if (!taskId) {
-      return new Response(JSON.stringify({ error: 'taskId is required' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'taskId is required' }), { status: 400, headers })
     }
+
+    if (!isValidUUID(taskId)) {
+      return new Response(JSON.stringify({ error: 'Invalid taskId format' }), { status: 400, headers })
+    }
+
+    const reason = rawReason ? sanitizeString(rawReason, 500) : undefined
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -36,7 +49,10 @@ serve(async (req) => {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+
+    const rateLimitResponse = await checkRateLimit(user.id, 'write')
+    if (rateLimitResponse) return rateLimitResponse
 
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -51,26 +67,26 @@ serve(async (req) => {
       .single()
 
     if (!task) {
-      return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404, headers })
     }
 
     // Validate caller is agent or runner on this task
     const isAgent = task.agent_id === user.id
     const isRunner = task.runner_id === user.id
     if (!isAgent && !isRunner) {
-      return new Response(JSON.stringify({ error: 'Not authorized to cancel this task' }), { status: 403 })
+      return new Response(JSON.stringify({ error: 'Not authorized to cancel this task' }), { status: 403, headers })
     }
 
     // Runners can only cancel tasks they've accepted or are working on
     if (isRunner && !['accepted', 'in_progress'].includes(task.status)) {
       console.error(`Runner ${user.id} attempted to cancel task ${taskId} in status ${task.status}`)
-      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400, headers })
     }
 
     // Validate status is cancellable
     if (!CANCELLABLE_STATUSES.includes(task.status)) {
       console.error(`Cancel rejected: task ${taskId} has status ${task.status}`)
-      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'This task cannot be cancelled at this time' }), { status: 400, headers })
     }
 
     // Handle Stripe PaymentIntent based on status
@@ -101,7 +117,7 @@ serve(async (req) => {
       .single()
 
     if (updateError) {
-      return new Response(JSON.stringify({ error: updateError.message }), { status: 500 })
+      return new Response(JSON.stringify({ error: updateError.message }), { status: 500, headers })
     }
 
     // Decline any pending applications
@@ -139,9 +155,9 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ task: updated }),
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers },
     )
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers })
   }
 })

@@ -24,6 +24,8 @@ struct MainTabView: View {
                                 MessagingView(conversationId: conversationId, otherUserName: otherUserName)
                             case .publicProfile(let userId):
                                 PublicProfileReadOnlyView(userId: userId)
+                            case .publicProfileBySlug(let slug):
+                                PublicProfileBySlugView(slug: slug)
                             case .inspectionChecklist(let taskId):
                                 InspectionChecklistView(taskId: taskId)
                             case .inspectionReport(let taskId):

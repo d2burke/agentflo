@@ -15,19 +15,9 @@
 		37A6E1832367379C8A0D3F91 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AF31663EC4676CABB26A05B4 /* Foundation.framework */; };
 		413D190716226753F3439AF6 /* CheckInCheckOutCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE9FC89E4B9C34508ECB57E /* CheckInCheckOutCard.swift */; };
 		5D2D1D3C2B67599477EB59B1 /* TaskCreationFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5103F8CEBD039586B678185 /* TaskCreationFlowTests.swift */; };
-		B1000060 /* PublicProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000060 /* PublicProfileTests.swift */; };
-		B1000061 /* MessagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000061 /* MessagingTests.swift */; };
-		B1000062 /* OpenHouseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000062 /* OpenHouseTests.swift */; };
-		B1000070 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000070 /* FlowLayout.swift */; };
-		B1000071 /* PublicProfileReadOnlyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000071 /* PublicProfileReadOnlyView.swift */; };
-		B1000072 /* ShowingReportForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000072 /* ShowingReportForm.swift */; };
-		D19BBCC3A9EB4D62BA0B2D5F /* ReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC882344D8144E4A9751224 /* ReviewSheet.swift */; };
-		B1000073 /* StagingPhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000073 /* StagingPhotoView.swift */; };
-		B1000074 /* StagingComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000074 /* StagingComparisonView.swift */; };
-		B1000075 /* OpenHouseQRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000075 /* OpenHouseQRView.swift */; };
-		B1000076 /* OpenHouseVisitorDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000076 /* OpenHouseVisitorDashboard.swift */; };
 		660E25F31F8B3AC7D1D3BA35 /* PhotoUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27EA49689F21C27DC98EF885 /* PhotoUploadView.swift */; };
 		7968A06AB83A0EBA42D9E177 /* DocumentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875F9B3BBD883279C734E637 /* DocumentListView.swift */; };
+		824174942F5A6B000059EDC8 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 824174932F5A6B000059EDC8 /* GoogleService-Info.plist */; };
 		8269DC482F5384650000E27B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1600001 /* Supabase */; };
 		8269DC492F5384650000E27B /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = A1600002 /* StripePaymentSheet */; };
 		ABAE0886D762D9A3A1DC000B /* MessagingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEABECD1381E019B94554C63 /* MessagingView.swift */; };
@@ -79,16 +69,20 @@
 		B100003E /* ChangePasswordSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100003E /* ChangePasswordSheet.swift */; };
 		B100003F /* BrokerageCompleter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100003F /* BrokerageCompleter.swift */; };
 		B1000040 /* AllTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000040 /* AllTasksView.swift */; };
-		BAF03EEF121BBC85C2D82139 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C601B678B3E3684518130E /* CameraView.swift */; };
-		BEBB2D9E682307D8E122C0EE /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6569F10502F653CBE59A690 /* LocationService.swift */; };
-		C3AFA9433D11124D7D16F17C /* PhotoGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CA050A352760C6DD3F6037 /* PhotoGalleryView.swift */; };
-		DFC17275EA81B5A8F3F5494D /* TaskCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0A84AC10151E17F3A20EBA /* TaskCategoryTests.swift */; };
-		E1A0000001000002 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0000001000001 /* AvatarView.swift */; };
-		E3AEA16814E22353A9331934 /* EdgeFunctionContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE35DAAAC38A813662B125EC /* EdgeFunctionContractTests.swift */; };
 		B1000041 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000041 /* ImageCache.swift */; };
 		B1000042 /* CachedAvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000042 /* CachedAvatarView.swift */; };
 		B1000050 /* RunnerPublicProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000050 /* RunnerPublicProfileView.swift */; };
 		B1000051 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000051 /* ShareSheet.swift */; };
+		B1000060 /* PublicProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000060 /* PublicProfileTests.swift */; };
+		B1000061 /* MessagingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000061 /* MessagingTests.swift */; };
+		B1000062 /* OpenHouseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000062 /* OpenHouseTests.swift */; };
+		B1000070 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000070 /* FlowLayout.swift */; };
+		B1000071 /* PublicProfileReadOnlyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000071 /* PublicProfileReadOnlyView.swift */; };
+		B1000072 /* ShowingReportForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000072 /* ShowingReportForm.swift */; };
+		B1000073 /* StagingPhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000073 /* StagingPhotoView.swift */; };
+		B1000074 /* StagingComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000074 /* StagingComparisonView.swift */; };
+		B1000075 /* OpenHouseQRView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000075 /* OpenHouseQRView.swift */; };
+		B1000076 /* OpenHouseVisitorDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000076 /* OpenHouseVisitorDashboard.swift */; };
 		B1000080 /* InspectionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000080 /* InspectionModels.swift */; };
 		B1000081 /* InspectionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000081 /* InspectionService.swift */; };
 		B1000082 /* InspectionSystemCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000082 /* InspectionSystemCard.swift */; };
@@ -96,6 +90,13 @@
 		B1000084 /* InspectionChecklistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000084 /* InspectionChecklistView.swift */; };
 		B1000085 /* InspectionReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000085 /* InspectionReportView.swift */; };
 		B1000086 /* InspectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000086 /* InspectionTests.swift */; };
+		BAF03EEF121BBC85C2D82139 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C601B678B3E3684518130E /* CameraView.swift */; };
+		BEBB2D9E682307D8E122C0EE /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6569F10502F653CBE59A690 /* LocationService.swift */; };
+		C3AFA9433D11124D7D16F17C /* PhotoGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CA050A352760C6DD3F6037 /* PhotoGalleryView.swift */; };
+		D19BBCC3A9EB4D62BA0B2D5F /* ReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EC882344D8144E4A9751224 /* ReviewSheet.swift */; };
+		DFC17275EA81B5A8F3F5494D /* TaskCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0A84AC10151E17F3A20EBA /* TaskCategoryTests.swift */; };
+		E1A0000001000002 /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0000001000001 /* AvatarView.swift */; };
+		E3AEA16814E22353A9331934 /* EdgeFunctionContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE35DAAAC38A813662B125EC /* EdgeFunctionContractTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,9 +114,11 @@
 		23A5B06B857F17853ACE8D05 /* DocumentUploadView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DocumentUploadView.swift; sourceTree = "<group>"; };
 		27EA49689F21C27DC98EF885 /* PhotoUploadView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoUploadView.swift; sourceTree = "<group>"; };
 		3A76DC09DDCA776C00E56103 /* MessageBubble.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MessageBubble.swift; path = AgentFlo/Views/Messaging/MessageBubble.swift; sourceTree = SOURCE_ROOT; };
+		3EC882344D8144E4A9751224 /* ReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSheet.swift; sourceTree = "<group>"; };
 		53AD8A19F47418269C282F35 /* ModelsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelsTests.swift; sourceTree = "<group>"; };
 		5E026928B18250331CC4A81A /* StorageService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StorageService.swift; sourceTree = "<group>"; };
 		5E7086175DF9C17DD8912E4E /* AgentFloTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentFloTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		824174932F5A6B000059EDC8 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		875F9B3BBD883279C734E637 /* DocumentListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DocumentListView.swift; sourceTree = "<group>"; };
 		8DE9FC89E4B9C34508ECB57E /* CheckInCheckOutCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CheckInCheckOutCard.swift; sourceTree = "<group>"; };
 		9C0A84AC10151E17F3A20EBA /* TaskCategoryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskCategoryTests.swift; sourceTree = "<group>"; };
@@ -169,20 +172,16 @@
 		A100003E /* ChangePasswordSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangePasswordSheet.swift; sourceTree = "<group>"; };
 		A100003F /* BrokerageCompleter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrokerageCompleter.swift; sourceTree = "<group>"; };
 		A1000040 /* AllTasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllTasksView.swift; sourceTree = "<group>"; };
-		A5CA050A352760C6DD3F6037 /* PhotoGalleryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoGalleryView.swift; sourceTree = "<group>"; };
-		A6569F10502F653CBE59A690 /* LocationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
-		AF31663EC4676CABB26A05B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		C5103F8CEBD039586B678185 /* TaskCreationFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskCreationFlowTests.swift; sourceTree = "<group>"; };
-		CEABECD1381E019B94554C63 /* MessagingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MessagingView.swift; path = AgentFlo/Views/Messaging/MessagingView.swift; sourceTree = SOURCE_ROOT; };
-		E1A0000001000001 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
-		EE35DAAAC38A813662B125EC /* EdgeFunctionContractTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EdgeFunctionContractTests.swift; sourceTree = "<group>"; };
+		A1000041 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		A1000042 /* CachedAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAvatarView.swift; sourceTree = "<group>"; };
+		A1000050 /* RunnerPublicProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPublicProfileView.swift; sourceTree = "<group>"; };
+		A1000051 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		A1000060 /* PublicProfileTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PublicProfileTests.swift; sourceTree = "<group>"; };
 		A1000061 /* MessagingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MessagingTests.swift; sourceTree = "<group>"; };
 		A1000062 /* OpenHouseTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OpenHouseTests.swift; sourceTree = "<group>"; };
 		A1000070 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		A1000071 /* PublicProfileReadOnlyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicProfileReadOnlyView.swift; sourceTree = "<group>"; };
 		A1000072 /* ShowingReportForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShowingReportForm.swift; sourceTree = "<group>"; };
-		3EC882344D8144E4A9751224 /* ReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSheet.swift; sourceTree = "<group>"; };
 		A1000073 /* StagingPhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagingPhotoView.swift; sourceTree = "<group>"; };
 		A1000074 /* StagingComparisonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagingComparisonView.swift; sourceTree = "<group>"; };
 		A1000075 /* OpenHouseQRView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenHouseQRView.swift; sourceTree = "<group>"; };
@@ -194,11 +193,14 @@
 		A1000084 /* InspectionChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectionChecklistView.swift; sourceTree = "<group>"; };
 		A1000085 /* InspectionReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectionReportView.swift; sourceTree = "<group>"; };
 		A1000086 /* InspectionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InspectionTests.swift; sourceTree = "<group>"; };
+		A5CA050A352760C6DD3F6037 /* PhotoGalleryView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoGalleryView.swift; sourceTree = "<group>"; };
+		A6569F10502F653CBE59A690 /* LocationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		AF31663EC4676CABB26A05B4 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		C5103F8CEBD039586B678185 /* TaskCreationFlowTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskCreationFlowTests.swift; sourceTree = "<group>"; };
+		CEABECD1381E019B94554C63 /* MessagingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MessagingView.swift; path = AgentFlo/Views/Messaging/MessagingView.swift; sourceTree = SOURCE_ROOT; };
+		E1A0000001000001 /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
+		EE35DAAAC38A813662B125EC /* EdgeFunctionContractTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EdgeFunctionContractTests.swift; sourceTree = "<group>"; };
 		FC2F142EBCA67D0F9272AB5A /* MessageService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MessageService.swift; path = AgentFlo/Services/MessageService.swift; sourceTree = SOURCE_ROOT; };
-		A1000041 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
-		A1000042 /* CachedAvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAvatarView.swift; sourceTree = "<group>"; };
-		A1000050 /* RunnerPublicProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerPublicProfileView.swift; sourceTree = "<group>"; };
-		A1000051 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -228,19 +230,7 @@
 				CEABECD1381E019B94554C63 /* MessagingView.swift */,
 				3A76DC09DDCA776C00E56103 /* MessageBubble.swift */,
 			);
-			name = Messaging;
 			path = Messaging;
-			sourceTree = "<group>";
-		};
-		A1100090 /* Inspections */ = {
-			isa = PBXGroup;
-			children = (
-				A1000082 /* InspectionSystemCard.swift */,
-				A1000083 /* InspectionFindingForm.swift */,
-				A1000084 /* InspectionChecklistView.swift */,
-				A1000085 /* InspectionReportView.swift */,
-			);
-			path = Inspections;
 			sourceTree = "<group>";
 		};
 		7F61992DFF15D0C37ABA8955 /* Frameworks */ = {
@@ -271,6 +261,7 @@
 				A1100007 /* Views */,
 				A100001D /* Assets.xcassets */,
 				A1000020 /* AgentFlo.entitlements */,
+				824174932F5A6B000059EDC8 /* GoogleService-Info.plist */,
 			);
 			path = AgentFlo;
 			sourceTree = "<group>";
@@ -447,6 +438,17 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		A1100090 /* Inspections */ = {
+			isa = PBXGroup;
+			children = (
+				A1000082 /* InspectionSystemCard.swift */,
+				A1000083 /* InspectionFindingForm.swift */,
+				A1000084 /* InspectionChecklistView.swift */,
+				A1000085 /* InspectionReportView.swift */,
+			);
+			path = Inspections;
+			sourceTree = "<group>";
+		};
 		F4DFC49F21994CEACAE639A5 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -468,7 +470,6 @@
 				A1000062 /* OpenHouseTests.swift */,
 				A1000086 /* InspectionTests.swift */,
 			);
-			name = AgentFloTests;
 			path = AgentFloTests;
 			sourceTree = "<group>";
 		};
@@ -566,6 +567,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B100001D /* Assets.xcassets in Resources */,
+				824174942F5A6B000059EDC8 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

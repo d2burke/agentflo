@@ -8,6 +8,7 @@ final class AppState {
     var storageService = StorageService()
     var messageService = MessageService()
     var inspectionService = InspectionService()
+    var pushService = PushNotificationService()
 
     // Onboarding
     var needsOnboarding = false
@@ -60,6 +61,7 @@ enum DashboardDestination: Hashable {
     case messaging(taskId: UUID, otherUserName: String)
     case directMessaging(conversationId: UUID, otherUserName: String)
     case publicProfile(UUID)
+    case publicProfileBySlug(String)
     case inspectionChecklist(UUID)
     case inspectionReport(UUID)
 }

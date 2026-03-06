@@ -1,7 +1,27 @@
 import SwiftUI
 
+class AppDelegate: NSObject, UIApplicationDelegate {
+    weak var appState: AppState?
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        guard let appState else { return }
+        Task { await appState.pushService.registerDeviceToken(deviceToken) }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        print("[AppDelegate] Failed to register for remote notifications: \(error)")
+    }
+}
+
 @main
 struct AgentFloApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appState = AppState()
 
     var body: some Scene {
@@ -9,10 +29,22 @@ struct AgentFloApp: App {
             RootView()
                 .environment(appState)
                 .task {
+                    appDelegate.appState = appState
                     await appState.authService.listenForAuthChanges()
+                    // Re-register if push was already authorized
+                    await appState.pushService.refreshPermissionStatus()
+                    if appState.pushService.isEnabled {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
                 }
                 .onOpenURL { url in
                     handleDeepLink(url)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .pushNotificationTapped)) { notification in
+                    if let taskId = notification.userInfo?["taskId"] as? UUID {
+                        appState.popToRoot(tab: .dashboard)
+                        appState.deepLink(tab: .dashboard, destination: DashboardDestination.taskDetail(taskId))
+                    }
                 }
         }
     }
@@ -57,6 +89,13 @@ struct AgentFloApp: App {
             if let id = path.dropFirst().first.flatMap({ UUID(uuidString: $0) }) {
                 appState.popToRoot(tab: .dashboard)
                 appState.deepLink(tab: .dashboard, destination: DashboardDestination.directMessaging(conversationId: id, otherUserName: ""))
+            }
+        case "agent":
+            // Universal link: /agent/{slug} → public profile
+            if let slug = path.dropFirst().first {
+                appState.popToRoot(tab: .dashboard)
+                // Slug is the user's profile slug; resolve to UUID in the destination view
+                appState.deepLink(tab: .dashboard, destination: DashboardDestination.publicProfileBySlug(slug))
             }
         case "profile":
             appState.selectedTab = .profile

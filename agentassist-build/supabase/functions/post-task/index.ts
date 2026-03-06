@@ -15,10 +15,22 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { handleCorsPreFlight, getCorsHeaders } from '../_shared/cors.ts'
+import { checkRateLimit } from '../_shared/rate-limit.ts'
+import { isValidUUID } from '../_shared/validation.ts'
 
 serve(async (req) => {
+  const corsResponse = handleCorsPreFlight(req)
+  if (corsResponse) return corsResponse
+
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' }
+
   try {
     const { taskId } = await req.json()
+
+    if (!isValidUUID(taskId)) {
+      return new Response(JSON.stringify({ error: 'Invalid taskId' }), { status: 400, headers })
+    }
 
     // Create Supabase client with auth context from request
     const supabase = createClient(
@@ -30,8 +42,12 @@ serve(async (req) => {
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
     }
+
+    // Rate limit: write action (10/min)
+    const rateLimitResponse = await checkRateLimit(user.id, 'write')
+    if (rateLimitResponse) return rateLimitResponse
 
     // Fetch the task and validate ownership + status
     const { data: task, error: fetchError } = await supabase
@@ -85,8 +101,27 @@ serve(async (req) => {
       )
     }
 
-    // TODO: Step 2 — Geocode address
-    // const { lat, lng } = await geocodeAddress(task.property_address)
+    // Step 2 — Geocode address via Google Maps Geocoding API
+    let lat: number | null = task.property_lat
+    let lng: number | null = task.property_lng
+
+    const googleMapsKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    if (googleMapsKey && !lat) {
+      try {
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(task.property_address)}&key=${googleMapsKey}`
+        const geocodeRes = await fetch(geocodeUrl)
+        const geocodeData = await geocodeRes.json()
+
+        if (geocodeData.status === 'OK' && geocodeData.results?.length > 0) {
+          lat = geocodeData.results[0].geometry.location.lat
+          lng = geocodeData.results[0].geometry.location.lng
+        } else {
+          console.warn(`[post-task] Geocoding failed for "${task.property_address}": ${geocodeData.status}`)
+        }
+      } catch (geoErr) {
+        console.error('[post-task] Geocoding error:', geoErr)
+      }
+    }
 
     // TODO: Step 3 — Create Stripe PaymentIntent (uncaptured)
     // Agent-pays model: hold price + 15% service fee
@@ -110,8 +145,8 @@ serve(async (req) => {
       .update({
         status: 'posted',
         posted_at: new Date().toISOString(),
-        // property_lat: lat,
-        // property_lng: lng,
+        property_lat: lat,
+        property_lng: lng,
         // stripe_payment_intent_id: paymentIntent.id,
       })
       .eq('id', taskId)
@@ -122,8 +157,46 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: updateError.message }), { status: 500 })
     }
 
-    // TODO: Step 5 — Find nearby runners via PostGIS
-    // TODO: Step 6 — Notify runners via send-notification
+    // Step 5 — Find nearby runners via PostGIS
+    if (lat && lng) {
+      try {
+        const { data: nearbyRunners } = await serviceClient.rpc('find_nearby_runners', {
+          task_lat: lat,
+          task_lng: lng,
+        })
+
+        // Step 6 — Notify nearby runners (skip the posting agent)
+        const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-notification`
+        const notifyHeaders = {
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json',
+        }
+
+        for (const runner of nearbyRunners ?? []) {
+          if (runner.runner_id === user.id) continue
+          try {
+            await fetch(notifyUrl, {
+              method: 'POST',
+              headers: notifyHeaders,
+              body: JSON.stringify({
+                userId: runner.runner_id,
+                type: 'new_task_nearby',
+                data: {
+                  category: task.category,
+                  distance: `${runner.distance_miles.toFixed(1)} mi`,
+                  price: (task.price / 100).toFixed(0),
+                  task_id: taskId,
+                },
+              }),
+            })
+          } catch (e) {
+            console.error(`[post-task] Failed to notify runner ${runner.runner_id}:`, e)
+          }
+        }
+      } catch (e) {
+        console.error('[post-task] Nearby runner lookup failed:', e)
+      }
+    }
 
     return new Response(JSON.stringify(updated), {
       headers: { 'Content-Type': 'application/json' },
