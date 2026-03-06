@@ -41,10 +41,15 @@ function getMessagingInstance(): Messaging | null {
  */
 export async function requestPushPermissionAndRegister(): Promise<string | null> {
   const messaging = getMessagingInstance()
-  if (!messaging) return null
+  if (!messaging) {
+    console.warn('[firebase] Messaging instance is null — check Firebase env vars')
+    return null
+  }
 
   try {
+    console.log('[firebase] Requesting notification permission...')
     const permission = await Notification.requestPermission()
+    console.log('[firebase] Permission result:', permission)
     if (permission !== 'granted') return null
 
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
@@ -53,13 +58,17 @@ export async function requestPushPermissionAndRegister(): Promise<string | null>
       return null
     }
 
+    console.log('[firebase] Getting FCM token...')
     const token = await getToken(messaging, {
       vapidKey,
       serviceWorkerRegistration: await navigator.serviceWorker.register('/firebase-messaging-sw.js'),
     })
+    console.log('[firebase] FCM token received:', token?.slice(0, 20) + '...')
 
     if (token) {
+      console.log('[firebase] Registering token with backend...')
       await registerTokenWithBackend(token)
+      console.log('[firebase] Token registration complete')
     }
 
     return token
@@ -75,11 +84,13 @@ async function registerTokenWithBackend(token: string) {
   // Refresh the session first to ensure a valid JWT
   await supabase.auth.refreshSession()
 
-  const { error } = await supabase.functions.invoke('register-push-token', {
+  const { data, error } = await supabase.functions.invoke('register-push-token', {
     body: { token, platform: 'web' },
   })
   if (error) {
     console.error('[firebase] Failed to register token:', error)
+  } else {
+    console.log('[firebase] Token registered successfully:', data)
   }
 }
 
