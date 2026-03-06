@@ -32,29 +32,35 @@ final class MessageService {
     }
 
     // MARK: - Send Message (task-based)
+    // Routes through send-message edge function for push notification delivery
 
     @discardableResult
     func sendMessage(taskId: UUID, senderId: UUID, body: String) async throws -> Message {
-        try await supabase
-            .from("messages")
-            .insert(NewTaskMessageBody(taskId: taskId, senderId: senderId, body: body))
-            .select()
-            .single()
-            .execute()
-            .value
+        let payload = SendMessagePayload(body: body, taskId: taskId.uuidString, conversationId: nil)
+        let bodyData = try JSONEncoder().encode(payload)
+
+        let response: SendMessageResponse = try await supabase.functions.invoke(
+            "send-message",
+            options: .init(body: bodyData)
+        )
+
+        return response.message
     }
 
     // MARK: - Send Message (conversation-based)
+    // Routes through send-message edge function for push notification delivery
 
     @discardableResult
     func sendMessage(conversationId: UUID, senderId: UUID, body: String) async throws -> Message {
-        try await supabase
-            .from("messages")
-            .insert(NewConversationMessageBody(conversationId: conversationId, senderId: senderId, body: body))
-            .select()
-            .single()
-            .execute()
-            .value
+        let payload = SendMessagePayload(body: body, taskId: nil, conversationId: conversationId.uuidString)
+        let bodyData = try JSONEncoder().encode(payload)
+
+        let response: SendMessageResponse = try await supabase.functions.invoke(
+            "send-message",
+            options: .init(body: bodyData)
+        )
+
+        return response.message
     }
 
     // MARK: - Mark as Read
@@ -199,29 +205,21 @@ final class MessageService {
     }
 }
 
-// MARK: - Request Bodies
+// MARK: - Request / Response Bodies
 
-private struct NewTaskMessageBody: Encodable {
-    let taskId: UUID
-    let senderId: UUID
+private struct SendMessagePayload: Encodable {
     let body: String
-
-    enum CodingKeys: String, CodingKey {
-        case taskId = "task_id"
-        case senderId = "sender_id"
-        case body
-    }
+    let taskId: String?
+    let conversationId: String?
 }
 
-private struct NewConversationMessageBody: Encodable {
-    let conversationId: UUID
-    let senderId: UUID
-    let body: String
+private struct SendMessageResponse: Decodable {
+    let message: Message
+    let notificationSent: Bool
 
     enum CodingKeys: String, CodingKey {
-        case conversationId = "conversation_id"
-        case senderId = "sender_id"
-        case body
+        case message
+        case notificationSent = "notification_sent"
     }
 }
 

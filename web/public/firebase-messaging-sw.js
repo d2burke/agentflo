@@ -35,7 +35,14 @@ self.addEventListener('notificationclick', (event) => {
   let url = '/'
 
   // Route based on notification type
-  if (data.task_id) {
+  if (data.type === 'new_message') {
+    // Deep link to messages — prefer conversation_id, fall back to task_id
+    if (data.conversation_id) {
+      url = `/messages?conversationId=${data.conversation_id}`
+    } else if (data.task_id) {
+      url = `/messages?taskId=${data.task_id}`
+    }
+  } else if (data.task_id) {
     url = `/tasks/${data.task_id}`
   }
 

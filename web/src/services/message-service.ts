@@ -45,19 +45,19 @@ export const messageService = {
     taskId?: string
   }): Promise<Message> {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from('messages')
-      .insert({
-        sender_id: params.senderId,
+
+    // Use send-message edge function to insert message AND trigger push notification
+    const { data, error } = await supabase.functions.invoke('send-message', {
+      body: {
         body: params.body,
-        conversation_id: params.conversationId ?? null,
-        task_id: params.taskId ?? null,
-      })
-      .select()
-      .single()
+        conversationId: params.conversationId ?? undefined,
+        taskId: params.taskId ?? undefined,
+      },
+    })
 
     if (error) throw error
-    return data as Message
+
+    return data.message as Message
   },
 
   async getOrCreateConversation(userId: string, otherUserId: string, taskId?: string): Promise<Conversation> {

@@ -41,7 +41,26 @@ struct AgentFloApp: App {
                     handleDeepLink(url)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .pushNotificationTapped)) { notification in
-                    if let taskId = notification.userInfo?["taskId"] as? UUID {
+                    let info = notification.userInfo
+                    let destination = info?["destination"] as? String
+
+                    if destination == "directMessage",
+                       let conversationId = info?["conversationId"] as? UUID {
+                        let senderName = info?["senderName"] as? String ?? ""
+                        appState.popToRoot(tab: .dashboard)
+                        appState.deepLink(
+                            tab: .dashboard,
+                            destination: DashboardDestination.directMessaging(conversationId: conversationId, otherUserName: senderName)
+                        )
+                    } else if destination == "taskMessage",
+                              let taskId = info?["taskId"] as? UUID {
+                        let senderName = info?["senderName"] as? String ?? ""
+                        appState.popToRoot(tab: .dashboard)
+                        appState.deepLink(
+                            tab: .dashboard,
+                            destination: DashboardDestination.messaging(taskId: taskId, otherUserName: senderName)
+                        )
+                    } else if let taskId = info?["taskId"] as? UUID {
                         appState.popToRoot(tab: .dashboard)
                         appState.deepLink(tab: .dashboard, destination: DashboardDestination.taskDetail(taskId))
                     }

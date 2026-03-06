@@ -99,14 +99,48 @@ final class PushNotificationService {
     // MARK: - Notification Handling
 
     fileprivate func handleNotificationPayload(_ userInfo: [AnyHashable: Any]) {
-        guard let taskIdString = userInfo["task_id"] as? String,
-              let taskId = UUID(uuidString: taskIdString) else { return }
+        let type = userInfo["type"] as? String
 
-        NotificationCenter.default.post(
-            name: .pushNotificationTapped,
-            object: nil,
-            userInfo: ["taskId": taskId]
-        )
+        // Message notifications — deep link to the conversation
+        if type == "new_message" {
+            if let conversationIdString = userInfo["conversation_id"] as? String,
+               let conversationId = UUID(uuidString: conversationIdString) {
+                let senderName = userInfo["sender_name"] as? String ?? ""
+                NotificationCenter.default.post(
+                    name: .pushNotificationTapped,
+                    object: nil,
+                    userInfo: [
+                        "destination": "directMessage",
+                        "conversationId": conversationId,
+                        "senderName": senderName,
+                    ]
+                )
+                return
+            } else if let taskIdString = userInfo["task_id"] as? String,
+                      let taskId = UUID(uuidString: taskIdString) {
+                let senderName = userInfo["sender_name"] as? String ?? ""
+                NotificationCenter.default.post(
+                    name: .pushNotificationTapped,
+                    object: nil,
+                    userInfo: [
+                        "destination": "taskMessage",
+                        "taskId": taskId,
+                        "senderName": senderName,
+                    ]
+                )
+                return
+            }
+        }
+
+        // Default: task-based deep link (all other notification types)
+        if let taskIdString = userInfo["task_id"] as? String,
+           let taskId = UUID(uuidString: taskIdString) {
+            NotificationCenter.default.post(
+                name: .pushNotificationTapped,
+                object: nil,
+                userInfo: ["taskId": taskId]
+            )
+        }
     }
 
     // MARK: - Open System Settings

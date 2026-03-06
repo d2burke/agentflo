@@ -34,6 +34,7 @@ const TEMPLATES: Record<string, { title: string; body: string }> = {
   review_prompt:       { title: 'How Did It Go?',           body: 'Rate your experience with {other_name} for {category} at {address}' },
   vetting_approved:    { title: 'Account Approved!',         body: 'Your account has been verified. You can now {action} on Agent Flo.' },
   vetting_rejected:    { title: 'Verification Update',       body: 'Your verification needs attention. {reason}' },
+  new_message:         { title: '{sender_name}',              body: '{message_preview}' },
 }
 
 // Maps notification type → notification_preferences column
@@ -49,6 +50,7 @@ const PREF_MAP: Record<string, string> = {
   review_prompt: 'task_updates',
   vetting_approved: 'task_updates',
   vetting_rejected: 'task_updates',
+  new_message: 'messages',
 }
 
 function resolveTemplate(
