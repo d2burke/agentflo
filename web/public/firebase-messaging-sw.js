@@ -6,12 +6,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js')
 
 firebase.initializeApp({
-  apiKey: self.__FIREBASE_CONFIG__?.apiKey,
-  authDomain: self.__FIREBASE_CONFIG__?.authDomain,
-  projectId: self.__FIREBASE_CONFIG__?.projectId,
-  storageBucket: self.__FIREBASE_CONFIG__?.storageBucket,
-  messagingSenderId: self.__FIREBASE_CONFIG__?.messagingSenderId,
-  appId: self.__FIREBASE_CONFIG__?.appId,
+  apiKey: 'AIzaSyA0QeMmJurayPJ-_mdjpzHAew9NT_IxIEc',
+  authDomain: 'agentflo-4822e.firebaseapp.com',
+  projectId: 'agentflo-4822e',
+  storageBucket: 'agentflo-4822e.firebasestorage.app',
+  messagingSenderId: '684953215923',
+  appId: '1:684953215923:web:701958fea32d56a05e61c6',
 })
 
 const messaging = firebase.messaging()
