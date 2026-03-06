@@ -29,14 +29,18 @@ export const adminService = {
 
   async fetchUserWithVetting(userId: string): Promise<AdminUserDetail> {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from('users')
-      .select('*, vetting_records(*)')
-      .eq('id', userId)
-      .single()
 
-    if (error) throw error
-    return data as AdminUserDetail
+    // Fetch user and vetting records separately to avoid join issues with RLS
+    const [{ data: user, error: userError }, { data: records, error: recordsError }] =
+      await Promise.all([
+        supabase.from('users').select('*').eq('id', userId).single(),
+        supabase.from('vetting_records').select('*').eq('user_id', userId),
+      ])
+
+    if (userError) throw userError
+    if (recordsError) throw recordsError
+
+    return { ...user, vetting_records: records ?? [] } as AdminUserDetail
   },
 
   async fetchVettingCounts(): Promise<Record<VettingStatus, number>> {

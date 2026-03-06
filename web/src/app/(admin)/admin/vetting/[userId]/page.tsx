@@ -91,7 +91,7 @@ function VettingRecordCard({ record }: { record: VettingRecord }) {
 export default function VettingDetailPage() {
   const { userId } = useParams<{ userId: string }>()
   const router = useRouter()
-  const { data: user, isLoading } = useUserDetail(userId)
+  const { data: user, isLoading, error } = useUserDetail(userId)
   const approveUser = useApproveUser()
   const rejectUser = useRejectUser()
   const [notes, setNotes] = useState('')
@@ -111,8 +111,20 @@ export default function VettingDetailPage() {
     })
   }
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return <LoadingSpinner message="Loading user..." />
+  }
+
+  if (error || !user) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-red font-medium mb-2">Failed to load user</p>
+        <p className="text-xs text-slate">{error?.message ?? 'User not found'}</p>
+        <button onClick={() => router.back()} className="mt-4 text-sm text-red hover:underline">
+          Go back
+        </button>
+      </div>
+    )
   }
 
   const isPending = user.vetting_status === 'pending'
