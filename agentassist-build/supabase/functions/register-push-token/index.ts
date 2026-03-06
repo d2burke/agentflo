@@ -55,6 +55,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
+    // Deactivate this exact token for ALL other users (token can only belong to one user at a time).
+    // This handles login switching — if user A had this token, it's now user B's.
+    await serviceClient
+      .from('push_tokens')
+      .update({ is_active: false })
+      .eq('token', token)
+      .neq('user_id', user.id)
+
     // Deactivate other tokens for this user+platform (one active token per platform)
     await serviceClient
       .from('push_tokens')

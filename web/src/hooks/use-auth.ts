@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAppStore } from '@/stores/app-store'
 import { authService } from '@/services/auth-service'
+import { requestPushPermissionAndRegister, getPushPermissionState } from '@/lib/firebase'
 
 export function useAuth() {
   const { user, isLoading, setUser, setLoading } = useAppStore()
@@ -34,6 +35,11 @@ export function useAuth() {
                 setUser(profile)
               } catch {
                 // ignore
+              }
+              // Re-register push token for the newly signed-in user
+              // (if browser already has push permission granted)
+              if (getPushPermissionState() === 'granted') {
+                requestPushPermissionAndRegister().catch(() => {})
               }
             } else if (event === 'SIGNED_OUT') {
               setUser(null)

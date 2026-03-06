@@ -30,11 +30,20 @@ struct AgentFloApp: App {
                 .environment(appState)
                 .task {
                     appDelegate.appState = appState
-                    await appState.authService.listenForAuthChanges()
-                    // Re-register if push was already authorized
+
+                    // Refresh push status and re-register if already authorized
                     await appState.pushService.refreshPermissionStatus()
                     if appState.pushService.isEnabled {
                         UIApplication.shared.registerForRemoteNotifications()
+                    }
+
+                    // Listen for auth changes (runs forever as AsyncSequence)
+                    await appState.authService.listenForAuthChanges()
+                }
+                .onChange(of: appState.authService.currentUser?.id) { oldId, newId in
+                    // User changed (login or logout) — re-register push token for new user
+                    if let _ = newId, newId != oldId, appState.pushService.isEnabled {
+                        Task { await appState.pushService.fetchAndRegisterFCMToken() }
                     }
                 }
                 .onOpenURL { url in
