@@ -499,6 +499,8 @@ final class ModelsTests: XCTestCase {
             "id": "11111111-1111-1111-1111-111111111111",
             "participant_1_id": "22222222-2222-2222-2222-222222222222",
             "participant_2_id": "33333333-3333-3333-3333-333333333333",
+            "kind": "direct",
+            "created_by": "22222222-2222-2222-2222-222222222222",
             "task_id": null,
             "created_at": "2024-01-15T10:00:00Z"
         }
@@ -507,6 +509,7 @@ final class ModelsTests: XCTestCase {
         let c = try decoder.decode(Conversation.self, from: json)
         XCTAssertEqual(c.participant1Id.uuidString.lowercased(), "22222222-2222-2222-2222-222222222222")
         XCTAssertEqual(c.participant2Id.uuidString.lowercased(), "33333333-3333-3333-3333-333333333333")
+        XCTAssertEqual(c.kind, "direct")
         XCTAssertNil(c.taskId)
     }
 
@@ -516,12 +519,15 @@ final class ModelsTests: XCTestCase {
             "id": "11111111-1111-1111-1111-111111111111",
             "participant_1_id": "22222222-2222-2222-2222-222222222222",
             "participant_2_id": "33333333-3333-3333-3333-333333333333",
+            "kind": "task",
+            "created_by": "22222222-2222-2222-2222-222222222222",
             "task_id": "44444444-4444-4444-4444-444444444444",
             "created_at": "2024-01-15T10:00:00Z"
         }
         """.data(using: .utf8)!
 
         let c = try decoder.decode(Conversation.self, from: json)
+        XCTAssertEqual(c.kind, "task")
         XCTAssertNotNil(c.taskId)
         XCTAssertEqual(c.taskId?.uuidString.lowercased(), "44444444-4444-4444-4444-444444444444")
     }
@@ -536,6 +542,12 @@ final class ModelsTests: XCTestCase {
             "conversation_id": "22222222-2222-2222-2222-222222222222",
             "sender_id": "33333333-3333-3333-3333-333333333333",
             "body": "Direct message",
+            "client_message_id": "44444444-4444-4444-4444-444444444444",
+            "message_type": "text",
+            "metadata": {},
+            "reply_to_message_id": null,
+            "edited_at": null,
+            "deleted_at": null,
             "read_at": null,
             "created_at": "2024-01-15T10:00:00Z"
         }
@@ -543,7 +555,8 @@ final class ModelsTests: XCTestCase {
 
         let m = try decoder.decode(Message.self, from: json)
         XCTAssertNil(m.taskId)
-        XCTAssertNotNil(m.conversationId)
+        XCTAssertEqual(m.conversationId.uuidString.lowercased(), "22222222-2222-2222-2222-222222222222")
+        XCTAssertEqual(m.messageType, "text")
         XCTAssertEqual(m.body, "Direct message")
     }
 

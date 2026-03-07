@@ -45,11 +45,39 @@ struct MessageBubble: View {
 #Preview {
     VStack(spacing: 12) {
         MessageBubble(
-            message: Message(id: UUID(), taskId: UUID(), conversationId: nil, senderId: UUID(), body: "Hi, I have a question about the property.", readAt: nil, createdAt: .now),
+            message: Message(
+                id: UUID(),
+                taskId: UUID(),
+                conversationId: UUID(),
+                senderId: UUID(),
+                body: "Hi, I have a question about the property.",
+                clientMessageId: nil,
+                messageType: "text",
+                metadata: [:],
+                replyToMessageId: nil,
+                editedAt: nil,
+                deletedAt: nil,
+                readAt: nil,
+                createdAt: .now
+            ),
             isOutgoing: false
         )
         MessageBubble(
-            message: Message(id: UUID(), taskId: UUID(), conversationId: nil, senderId: UUID(), body: "Sure, what would you like to know?", readAt: .now, createdAt: .now),
+            message: Message(
+                id: UUID(),
+                taskId: UUID(),
+                conversationId: UUID(),
+                senderId: UUID(),
+                body: "Sure, what would you like to know?",
+                clientMessageId: nil,
+                messageType: "text",
+                metadata: [:],
+                replyToMessageId: nil,
+                editedAt: nil,
+                deletedAt: nil,
+                readAt: .now,
+                createdAt: .now
+            ),
             isOutgoing: true
         )
     }

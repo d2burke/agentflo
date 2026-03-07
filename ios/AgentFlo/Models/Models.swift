@@ -305,15 +305,27 @@ struct Conversation: Codable, Identifiable {
     let id: UUID
     let participant1Id: UUID
     let participant2Id: UUID
+    let kind: String
     var taskId: UUID?
+    let createdBy: UUID?
+    let lastMessageId: UUID?
+    let lastMessageAt: Date?
+    let lastMessagePreview: String?
     let createdAt: Date?
+    let updatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
         case participant1Id = "participant_1_id"
         case participant2Id = "participant_2_id"
+        case kind
         case taskId = "task_id"
+        case createdBy = "created_by"
+        case lastMessageId = "last_message_id"
+        case lastMessageAt = "last_message_at"
+        case lastMessagePreview = "last_message_preview"
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -376,9 +388,15 @@ struct Deliverable: Codable, Identifiable {
 struct Message: Codable, Identifiable {
     let id: UUID
     let taskId: UUID?
-    let conversationId: UUID?
+    let conversationId: UUID
     let senderId: UUID
     let body: String
+    let clientMessageId: UUID?
+    let messageType: String?
+    let metadata: [String: String]?
+    let replyToMessageId: UUID?
+    let editedAt: Date?
+    let deletedAt: Date?
     var readAt: Date?
     let createdAt: Date?
 
@@ -387,6 +405,12 @@ struct Message: Codable, Identifiable {
         case taskId = "task_id"
         case conversationId = "conversation_id"
         case senderId = "sender_id"
+        case clientMessageId = "client_message_id"
+        case messageType = "message_type"
+        case metadata
+        case replyToMessageId = "reply_to_message_id"
+        case editedAt = "edited_at"
+        case deletedAt = "deleted_at"
         case readAt = "read_at"
         case createdAt = "created_at"
     }

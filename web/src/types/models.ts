@@ -141,24 +141,61 @@ export interface Deliverable {
 
 // Message
 
+export type MessageType = 'text' | 'image' | 'file' | 'system'
+export type MessageDeliveryStatus = 'sending' | 'sent' | 'failed'
+
 export interface Message {
   id: string
   task_id?: string | null
-  conversation_id?: string | null
+  conversation_id: string
   sender_id: string
   body: string
+  client_message_id?: string | null
+  message_type?: MessageType | null
+  metadata?: Record<string, unknown> | null
+  reply_to_message_id?: string | null
+  edited_at?: string | null
+  deleted_at?: string | null
+  delivery_status?: MessageDeliveryStatus
   read_at?: string | null
   created_at?: string | null
 }
 
 // Conversation
 
+export type ConversationKind = 'direct' | 'task'
+
 export interface Conversation {
   id: string
   participant_1_id: string
   participant_2_id: string
+  kind: ConversationKind
   task_id?: string | null
+  created_by?: string | null
+  last_message_id?: string | null
+  last_message_at?: string | null
+  last_message_preview?: string | null
   created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface ConversationPreview {
+  conversation_id: string
+  conversation_kind: ConversationKind
+  task_id?: string | null
+  other_user_id: string
+  other_user_name: string
+  other_user_avatar?: string | null
+  last_message_id?: string | null
+  last_message_body?: string | null
+  last_message_type?: MessageType | null
+  last_message_at?: string | null
+  last_message_sender_id?: string | null
+  unread_count: number
+  is_pinned?: boolean | null
+  archived_at?: string | null
+  draft_body?: string | null
+  sort_at?: string | null
 }
 
 // Open House Visitor

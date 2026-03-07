@@ -31,7 +31,7 @@ export function createMockSupabaseClient() {
 
   // Edge functions
   chain.functions = {
-    invoke: vi.fn().mockResolvedValue(mockResolvedValue),
+    invoke: vi.fn().mockImplementation(() => Promise.resolve(mockResolvedValue)),
   }
 
   // Auth

@@ -150,23 +150,23 @@ final class EdgeFunctionContractTests: XCTestCase {
 
     // MARK: - Message Contract
 
-    /// Messages require task_id, sender_id, and body
-    func testMessageInsertFormat() throws {
-        let taskId = UUID()
-        let senderId = UUID()
-        let body: [String: String] = [
-            "task_id": taskId.uuidString,
-            "sender_id": senderId.uuidString,
+    /// send-message expects the canonical conversation payload
+    func testSendMessagePayloadFormat() throws {
+        let payload: [String: Any] = [
             "body": "Hello, question about the property.",
+            "conversationId": UUID().uuidString,
+            "clientMessageId": UUID().uuidString,
+            "messageType": "text",
+            "metadata": [:],
         ]
 
-        let data = try JSONEncoder().encode(body)
-        let decoded = try JSONSerialization.jsonObject(with: data) as? [String: String]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let decoded = try JSONSerialization.jsonObject(with: data) as? [String: Any]
 
-        XCTAssertNotNil(decoded?["task_id"])
-        XCTAssertNotNil(decoded?["sender_id"])
-        XCTAssertNotNil(decoded?["body"])
-        XCTAssertFalse(decoded?["body"]?.isEmpty ?? true)
+        XCTAssertNotNil(decoded?["conversationId"])
+        XCTAssertNotNil(decoded?["clientMessageId"])
+        XCTAssertEqual(decoded?["messageType"] as? String, "text")
+        XCTAssertFalse((decoded?["body"] as? String)?.isEmpty ?? true)
     }
 
     // MARK: - Payout Setup Validation

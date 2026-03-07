@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type {
-  AppUser, AgentTask, TaskApplication, Message, Conversation,
-  Deliverable, OpenHouseVisitor, ShowingReport, Review,
-  AppNotification, PortfolioImage, InspectionFinding,
-  ServiceArea, Availability, NotificationPreferences,
+  AppUser, AgentTask, Message, Conversation,
+  Deliverable, AppNotification,
 } from '@/types/models'
 
 // ── Fixture Factories ──
@@ -78,6 +76,13 @@ export function createMockMessage(overrides?: Partial<Message>): Message {
     conversation_id: 'conv-1',
     sender_id: 'user-1',
     body: 'Hello!',
+    client_message_id: null,
+    message_type: 'text',
+    metadata: {},
+    reply_to_message_id: null,
+    edited_at: null,
+    deleted_at: null,
+    delivery_status: 'sent',
     read_at: null,
     created_at: '2024-01-15T12:00:00Z',
     ...overrides,
@@ -89,8 +94,14 @@ export function createMockConversation(overrides?: Partial<Conversation>): Conve
     id: 'conv-1',
     participant_1_id: 'user-1',
     participant_2_id: 'user-2',
+    kind: 'task',
     task_id: 'task-1',
+    created_by: 'user-1',
+    last_message_id: 'msg-1',
+    last_message_at: '2024-01-15T12:00:00Z',
+    last_message_preview: 'Hello!',
     created_at: '2024-01-15T12:00:00Z',
+    updated_at: '2024-01-15T12:00:00Z',
     ...overrides,
   }
 }

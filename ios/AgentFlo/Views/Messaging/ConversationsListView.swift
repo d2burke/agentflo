@@ -92,10 +92,23 @@ struct ConversationRow: View {
             // Name + last message
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack {
-                    Text(conversation.otherUserName)
-                        .font(conversation.unreadCount > 0 ? .bodyEmphasis : .bodySM)
-                        .foregroundStyle(.agentNavy)
-                        .lineLimit(1)
+                    HStack(spacing: Spacing.xs) {
+                        Text(conversation.otherUserName)
+                            .font(conversation.unreadCount > 0 ? .bodyEmphasis : .bodySM)
+                            .foregroundStyle(.agentNavy)
+                            .lineLimit(1)
+
+                        if conversation.conversationKind == "task" {
+                            Text("Task")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(.agentRed)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.agentRedLight)
+                                .clipShape(Capsule())
+                        }
+                    }
 
                     Spacer()
 
