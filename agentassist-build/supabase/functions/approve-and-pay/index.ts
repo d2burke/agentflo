@@ -81,46 +81,73 @@ serve(async (req) => {
       )
     }
 
-    // Capture Stripe PaymentIntent
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
-    if (stripeKey && task.stripe_payment_intent_id) {
-      const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+    if (!stripeKey) {
+      return new Response(
+        JSON.stringify({ error: 'Payments are not configured. Unable to complete this task.' }),
+        { headers: { 'Content-Type': 'application/json' }, status: 503 },
+      )
+    }
 
-      // Capture the held payment (idempotency key prevents double-capture)
+    if (!task.stripe_payment_intent_id) {
+      return new Response(
+        JSON.stringify({ error: 'This task has no authorized payment hold. Re-post the task after updating the payment method.' }),
+        { headers: { 'Content-Type': 'application/json' }, status: 400 },
+      )
+    }
+
+    if (!task.runner_id || !task.runner_payout) {
+      return new Response(
+        JSON.stringify({ error: 'Task payout data is incomplete.' }),
+        { headers: { 'Content-Type': 'application/json' }, status: 400 },
+      )
+    }
+
+    const { data: runner } = await serviceClient
+      .from('users')
+      .select('stripe_connect_id')
+      .eq('id', task.runner_id)
+      .single()
+
+    if (!runner?.stripe_connect_id) {
+      return new Response(
+        JSON.stringify({
+          error: 'Runner has not set up their payout method. Ask them to finish payout setup before approving payment.',
+        }),
+        { headers: { 'Content-Type': 'application/json' }, status: 400 },
+      )
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(task.stripe_payment_intent_id)
+    if (paymentIntent.status !== 'requires_capture' && paymentIntent.status !== 'succeeded') {
+      return new Response(
+        JSON.stringify({
+          error: `Payment hold is not capturable (status: ${paymentIntent.status}).`,
+        }),
+        { headers: { 'Content-Type': 'application/json' }, status: 400 },
+      )
+    }
+
+    if (paymentIntent.status === 'requires_capture') {
       await stripe.paymentIntents.capture(task.stripe_payment_intent_id, {}, {
         idempotencyKey: `approve-${taskId}`,
       })
-
-      // Transfer runner payout to their Connect account
-      if (task.runner_payout && task.runner_id) {
-        const { data: runner } = await serviceClient
-          .from('users')
-          .select('stripe_connect_id')
-          .eq('id', task.runner_id)
-          .single()
-
-        if (!runner?.stripe_connect_id) {
-          console.error(`Runner ${task.runner_id} has no stripe_connect_id — cannot transfer payout`)
-          return new Response(
-            JSON.stringify({
-              error: 'Runner has not set up their payout method. Payment was captured but payout cannot be transferred. Please contact the runner to set up payouts.',
-            }),
-            { headers: { 'Content-Type': 'application/json' }, status: 400 },
-          )
-        }
-
-        // Idempotency key prevents duplicate transfers on retry
-        await stripe.transfers.create({
-          amount: task.runner_payout,
-          currency: 'usd',
-          destination: runner.stripe_connect_id,
-          transfer_group: taskId,
-          metadata: { task_id: taskId },
-        }, {
-          idempotencyKey: `transfer-${taskId}`,
-        })
-      }
     }
+
+    await stripe.transfers.create({
+      amount: task.runner_payout,
+      currency: 'usd',
+      destination: runner.stripe_connect_id,
+      transfer_group: taskId,
+      metadata: { task_id: taskId },
+    }, {
+      idempotencyKey: `transfer-${taskId}`,
+    })
 
     // Update task status — atomic check prevents race condition
     const { data: updated, error: updateError } = await serviceClient

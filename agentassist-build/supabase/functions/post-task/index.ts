@@ -15,9 +15,12 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'https://esm.sh/stripe@14.14.0?target=deno'
 import { handleCorsPreFlight, getCorsHeaders } from '../_shared/cors.ts'
 import { checkRateLimit } from '../_shared/rate-limit.ts'
 import { isValidUUID } from '../_shared/validation.ts'
+
+const PLATFORM_FEE_RATE = 0.15
 
 serve(async (req) => {
   const corsResponse = handleCorsPreFlight(req)
@@ -123,23 +126,108 @@ serve(async (req) => {
       }
     }
 
-    // TODO: Step 3 — Create Stripe PaymentIntent (uncaptured)
-    // Agent-pays model: hold price + 15% service fee
-    // const fee = Math.round(task.price * 0.15)
-    // const paymentIntent = await stripe.paymentIntents.create({
-    //   amount: task.price + fee,
-    //   currency: 'usd',
-    //   capture_method: 'manual',
-    //   customer: agentProfile.stripe_customer_id,
-    //   metadata: { task_id: taskId, runner_pay: task.price, platform_fee: fee }
-    // })
-
-    // Step 4 — Update task status using service role client
     const serviceClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Step 3 — Create a Stripe authorization before exposing the task.
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+    if (!stripeKey) {
+      return new Response(
+        JSON.stringify({ error: 'Payments are not configured. Unable to post tasks.' }),
+        { status: 503, headers },
+      )
+    }
+
+    const { data: agentProfile, error: profileError } = await serviceClient
+      .from('users')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !agentProfile) {
+      return new Response(JSON.stringify({ error: 'Agent profile not found' }), { status: 404, headers })
+    }
+
+    if (!agentProfile.stripe_customer_id) {
+      return new Response(
+        JSON.stringify({ error: 'Add a payment method before posting tasks.' }),
+        { status: 400, headers },
+      )
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+
+    const customer = await stripe.customers.retrieve(agentProfile.stripe_customer_id)
+    if ('deleted' in customer && customer.deleted) {
+      return new Response(
+        JSON.stringify({ error: 'Saved payment profile is no longer available. Please add a payment method again.' }),
+        { status: 400, headers },
+      )
+    }
+
+    const defaultPaymentMethod = typeof customer.invoice_settings.default_payment_method === 'string'
+      ? customer.invoice_settings.default_payment_method
+      : customer.invoice_settings.default_payment_method?.id ?? null
+
+    let paymentMethodId = defaultPaymentMethod
+    if (!paymentMethodId) {
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: agentProfile.stripe_customer_id,
+        type: 'card',
+        limit: 1,
+      })
+      paymentMethodId = paymentMethods.data[0]?.id ?? null
+    }
+
+    if (!paymentMethodId) {
+      return new Response(
+        JSON.stringify({ error: 'Add a payment method before posting tasks.' }),
+        { status: 400, headers },
+      )
+    }
+
+    const fee = Math.round(task.price * PLATFORM_FEE_RATE)
+
+    let paymentIntent
+    try {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: task.price + fee,
+        currency: 'usd',
+        capture_method: 'manual',
+        customer: agentProfile.stripe_customer_id,
+        payment_method: paymentMethodId,
+        confirm: true,
+        off_session: true,
+        metadata: {
+          task_id: taskId,
+          runner_pay: String(task.price),
+          platform_fee: String(fee),
+        },
+      }, {
+        idempotencyKey: `post-task-${taskId}`,
+      })
+    } catch (paymentErr) {
+      console.error('[post-task] Payment authorization failed:', paymentErr)
+      return new Response(
+        JSON.stringify({ error: 'Unable to authorize the payment method on file. Update the payment method and try again.' }),
+        { status: 400, headers },
+      )
+    }
+
+    if (paymentIntent.status !== 'requires_capture') {
+      console.error(`[post-task] Unexpected PaymentIntent status for task ${taskId}: ${paymentIntent.status}`)
+      return new Response(
+        JSON.stringify({ error: 'Unable to authorize the payment method on file. Update the payment method and try again.' }),
+        { status: 400, headers },
+      )
+    }
+
+    // Step 4 — Update task status using service role client
     const { data: updated, error: updateError } = await serviceClient
       .from('tasks')
       .update({
@@ -147,7 +235,7 @@ serve(async (req) => {
         posted_at: new Date().toISOString(),
         property_lat: lat,
         property_lng: lng,
-        // stripe_payment_intent_id: paymentIntent.id,
+        stripe_payment_intent_id: paymentIntent.id,
       })
       .eq('id', taskId)
       .select('id, status, posted_at, stripe_payment_intent_id')

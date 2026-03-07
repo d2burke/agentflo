@@ -72,7 +72,91 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     )
 
-    // Insert the message
+    // Resolve the recipient and authorize the sender before any privileged write.
+    let recipientId: string | null = null
+    let taskRecipientId: string | null = null
+    let conversationRecipientId: string | null = null
+    let senderName = 'Someone'
+
+    // Get sender's name
+    const { data: senderProfile } = await serviceClient
+      .from('users')
+      .select('full_name')
+      .eq('id', senderId)
+      .single()
+
+    if (senderProfile?.full_name) {
+      senderName = senderProfile.full_name
+    }
+
+    if (conversationId) {
+      // Direct conversation: recipient is the other participant
+      const { data: conversation, error: conversationError } = await serviceClient
+        .from('conversations')
+        .select('participant_1_id, participant_2_id')
+        .eq('id', conversationId)
+        .single()
+
+      if (conversationError || !conversation) {
+        return new Response(JSON.stringify({ error: 'Conversation not found' }), { status: 404, headers })
+      }
+
+      if (conversation.participant_1_id !== senderId && conversation.participant_2_id !== senderId) {
+        return new Response(JSON.stringify({ error: 'Not authorized to send messages in this conversation' }), { status: 403, headers })
+      }
+
+      conversationRecipientId = conversation.participant_1_id === senderId
+        ? conversation.participant_2_id
+        : conversation.participant_1_id
+    } else if (taskId) {
+      // Task-based message: find the other party from the task
+      const { data: task, error: taskError } = await serviceClient
+        .from('tasks')
+        .select('agent_id, runner_id')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404, headers })
+      }
+
+      // If sender is the agent, notify the runner; if sender is the runner, notify the agent
+      if (task.agent_id === senderId) {
+        taskRecipientId = task.runner_id
+      } else if (task.runner_id === senderId) {
+        taskRecipientId = task.agent_id
+      } else {
+        return new Response(JSON.stringify({ error: 'Not authorized to send messages for this task' }), { status: 403, headers })
+      }
+    }
+
+    if (conversationId && taskId) {
+      const { data: task, error: taskError } = await serviceClient
+        .from('tasks')
+        .select('agent_id, runner_id')
+        .eq('id', taskId)
+        .single()
+
+      if (taskError || !task) {
+        return new Response(JSON.stringify({ error: 'Task not found' }), { status: 404, headers })
+      }
+
+      if (task.agent_id === senderId) {
+        taskRecipientId = task.runner_id
+      } else if (task.runner_id === senderId) {
+        taskRecipientId = task.agent_id
+      } else {
+        return new Response(JSON.stringify({ error: 'Not authorized to send messages for this task' }), { status: 403, headers })
+      }
+
+      if (conversationRecipientId && taskRecipientId && conversationRecipientId !== taskRecipientId) {
+        return new Response(JSON.stringify({ error: 'Conversation and task participants do not match' }), { status: 400, headers })
+      }
+    }
+
+    recipientId = conversationRecipientId ?? taskRecipientId
+
+    // Insert the message after sender authorization succeeds.
     const insertPayload: Record<string, unknown> = {
       sender_id: senderId,
       body,
@@ -89,52 +173,6 @@ serve(async (req) => {
     if (insertError) {
       console.error('[send-message] Insert error:', insertError)
       return new Response(JSON.stringify({ error: insertError.message }), { status: 500, headers })
-    }
-
-    // Resolve the recipient (the other participant)
-    let recipientId: string | null = null
-    let senderName = 'Someone'
-
-    // Get sender's name
-    const { data: senderProfile } = await serviceClient
-      .from('users')
-      .select('full_name')
-      .eq('id', senderId)
-      .single()
-
-    if (senderProfile?.full_name) {
-      senderName = senderProfile.full_name
-    }
-
-    if (conversationId) {
-      // Direct conversation: recipient is the other participant
-      const { data: conversation } = await serviceClient
-        .from('conversations')
-        .select('participant_1_id, participant_2_id')
-        .eq('id', conversationId)
-        .single()
-
-      if (conversation) {
-        recipientId = conversation.participant_1_id === senderId
-          ? conversation.participant_2_id
-          : conversation.participant_1_id
-      }
-    } else if (taskId) {
-      // Task-based message: find the other party from the task
-      const { data: task } = await serviceClient
-        .from('tasks')
-        .select('agent_id, runner_id')
-        .eq('id', taskId)
-        .single()
-
-      if (task) {
-        // If sender is the agent, notify the runner; if sender is the runner, notify the agent
-        if (task.agent_id === senderId) {
-          recipientId = task.runner_id
-        } else if (task.runner_id === senderId) {
-          recipientId = task.agent_id
-        }
-      }
     }
 
     // Send push notification to recipient

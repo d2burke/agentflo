@@ -142,6 +142,20 @@ async function getFcmAccessToken(serviceAccount: {
 
 serve(async (req) => {
   try {
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const authorization = req.headers.get('Authorization') ?? ''
+    const bearerToken = authorization.startsWith('Bearer ')
+      ? authorization.slice('Bearer '.length)
+      : ''
+    const apiKey = req.headers.get('apikey') ?? ''
+
+    if (!serviceRoleKey || (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey)) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
     const { userId, type, data, customTitle, customBody } = await req.json()
 
     if (!userId || !type) {
