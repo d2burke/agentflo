@@ -228,6 +228,9 @@ private class PushNotificationCoordinator: NSObject, UNUserNotificationCenterDel
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        // Clear app icon badge when notification is tapped
+        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+
         let userInfo = response.notification.request.content.userInfo
         service?.handleNotificationPayload(userInfo)
         completionHandler()

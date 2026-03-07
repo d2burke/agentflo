@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     weak var appState: AppState?
@@ -22,6 +23,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct AgentFloApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @State private var appState = AppState()
 
     var body: some Scene {
@@ -44,6 +46,12 @@ struct AgentFloApp: App {
                     // User changed (login or logout) — re-register push token for new user
                     if let _ = newId, newId != oldId, appState.pushService.isEnabled {
                         Task { await appState.pushService.fetchAndRegisterFCMToken() }
+                    }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        // Clear app icon badge when app comes to foreground
+                        UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
                     }
                 }
                 .onOpenURL { url in
