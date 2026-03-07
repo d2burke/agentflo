@@ -7,7 +7,34 @@ struct AccountSecurityView: View {
     @State private var showChangePassword = false
     @State private var showDeleteConfirm = false
 
+    @State private var isAuthenticating = false
+    @State private var showAuthSuccess = false
+
     private var user: AppUser? { appState.authService.currentUser }
+
+    private var biometricBinding: Binding<Bool> {
+        Binding(
+            get: { appState.biometricService.isBiometricEnabled },
+            set: { newValue in
+                if newValue {
+                    // Authenticate before enabling
+                    isAuthenticating = true
+                    Task {
+                        let success = await appState.biometricService.authenticate()
+                        await MainActor.run {
+                            if success {
+                                appState.biometricService.isBiometricEnabled = true
+                            }
+                            isAuthenticating = false
+                        }
+                    }
+                } else {
+                    appState.biometricService.isBiometricEnabled = false
+                    appState.biometricService.isLocked = false
+                }
+            }
+        )
+    }
 
     var body: some View {
         List {
@@ -57,6 +84,20 @@ struct AccountSecurityView: View {
                             .foregroundStyle(.agentSlateLight)
                     }
                 }
+
+                if appState.biometricService.isBiometricAvailable {
+                    Toggle(isOn: biometricBinding) {
+                        HStack {
+                            Image(systemName: appState.biometricService.biometricIconName)
+                                .foregroundStyle(.agentSlate)
+                            Text("Require \(appState.biometricService.biometricType)")
+                                .font(.bodySM)
+                                .foregroundStyle(.agentNavy)
+                        }
+                    }
+                    .tint(.agentRed)
+
+                }
             }
 
             Section {
@@ -76,9 +117,33 @@ struct AccountSecurityView: View {
         }
         .navigationTitle("Account & Security")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if appState.biometricService.isBiometricAvailable {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            let success = await appState.biometricService.authenticate()
+                            if success { showAuthSuccess = true }
+                        }
+                    } label: {
+                        Image(systemName: appState.biometricService.biometricIconName)
+                            .font(.title3)
+                            .foregroundStyle(.agentRed)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            appState.biometricService.checkBiometricAvailability()
+        }
         .sheet(isPresented: $showChangePassword) {
             ChangePasswordSheet()
                 .presentationDragIndicator(.visible)
+        }
+        .alert("\(appState.biometricService.biometricType) Verified", isPresented: $showAuthSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Authentication successful.")
         }
         .alert("Delete Account?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}

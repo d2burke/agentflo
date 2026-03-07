@@ -35,6 +35,20 @@ struct MainTabView: View {
                 }
             }
 
+            Tab("Messages", systemImage: "message.fill", value: .messages) {
+                NavigationStack(path: $state.messagesPath) {
+                    ConversationsListView()
+                        .navigationDestination(for: MessagesDestination.self) { destination in
+                            switch destination {
+                            case .conversation(let conversationId, let otherUserName):
+                                MessagingView(conversationId: conversationId, otherUserName: otherUserName)
+                            case .taskConversation(let taskId, let otherUserName):
+                                MessagingView(taskId: taskId, otherUserName: otherUserName)
+                            }
+                        }
+                }
+            }
+
             Tab("Notifications", systemImage: "bell.fill", value: .notifications) {
                 NavigationStack(path: $state.notificationsPath) {
                     NotificationsView()

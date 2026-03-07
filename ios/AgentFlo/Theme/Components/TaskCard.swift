@@ -23,13 +23,12 @@ struct TaskCard: View {
                 Button {
                     onAgentTap?(agent.id)
                 } label: {
-                    Label {
+                    HStack(spacing: Spacing.sm) {
+                        CachedAvatarView(avatarPath: agent.avatarUrl, name: agent.fullName, size: 24)
                         Text("Posted by \(agent.fullName)")
-                    } icon: {
-                        Image(systemName: "person.fill")
+                            .font(.caption)
+                            .foregroundStyle(.agentSlate)
                     }
-                    .font(.caption)
-                    .foregroundStyle(.agentSlate)
                 }
                 .buttonStyle(.plain)
                 .disabled(onAgentTap == nil)

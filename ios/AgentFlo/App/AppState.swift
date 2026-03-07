@@ -9,6 +9,7 @@ final class AppState {
     var messageService = MessageService()
     var inspectionService = InspectionService()
     var pushService = PushNotificationService()
+    var biometricService = BiometricAuthService()
 
     // Onboarding
     var needsOnboarding = false
@@ -18,6 +19,7 @@ final class AppState {
     // Navigation
     var selectedTab: AppTab = .dashboard
     var dashboardPath = NavigationPath()
+    var messagesPath = NavigationPath()
     var notificationsPath = NavigationPath()
     var profilePath = NavigationPath()
 
@@ -27,6 +29,8 @@ final class AppState {
         switch tab {
         case .dashboard:
             dashboardPath.append(destination)
+        case .messages:
+            messagesPath.append(destination)
         case .notifications:
             notificationsPath.append(destination)
         case .profile:
@@ -38,6 +42,8 @@ final class AppState {
         switch tab {
         case .dashboard:
             dashboardPath = NavigationPath()
+        case .messages:
+            messagesPath = NavigationPath()
         case .notifications:
             notificationsPath = NavigationPath()
         case .profile:
@@ -48,6 +54,7 @@ final class AppState {
 
 enum AppTab: Hashable {
     case dashboard
+    case messages
     case notifications
     case profile
 }
@@ -64,6 +71,11 @@ enum DashboardDestination: Hashable {
     case publicProfileBySlug(String)
     case inspectionChecklist(UUID)
     case inspectionReport(UUID)
+}
+
+enum MessagesDestination: Hashable {
+    case conversation(conversationId: UUID, otherUserName: String)
+    case taskConversation(taskId: UUID, otherUserName: String)
 }
 
 enum NotificationDestination: Hashable {

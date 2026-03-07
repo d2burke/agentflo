@@ -107,6 +107,15 @@ final class MessageService {
         return messages.count
     }
 
+    // MARK: - Conversation List
+
+    func fetchConversationList(userId: UUID) async throws -> [ConversationPreview] {
+        try await supabase
+            .rpc("get_conversation_list", params: ["p_user_id": userId.uuidString])
+            .execute()
+            .value
+    }
+
     // MARK: - Conversations
 
     func findOrCreateConversation(userId1: UUID, userId2: UUID) async throws -> Conversation {

@@ -63,17 +63,17 @@ final class VettingService {
         isSubmitting = true
         defer { Task { @MainActor in isSubmitting = false } }
 
-        struct SubmitResponse: Decodable {
-            let success: Bool
-            let record: VettingRecord
+        struct SubmitPayload: Encodable {
+            let type: String
+            let submittedData: [String: String]
         }
+
+        let payload = SubmitPayload(type: type, submittedData: submittedData)
+        let bodyData = try JSONEncoder().encode(payload)
 
         try await supabase.functions.invoke(
             "submit-vetting",
-            options: .init(body: [
-                "type": type,
-                "submittedData": submittedData,
-            ])
+            options: .init(body: bodyData)
         )
 
         // Refresh records after submission
@@ -99,3 +99,4 @@ final class VettingService {
         records.first { $0.type == type }
     }
 }
+

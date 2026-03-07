@@ -52,6 +52,11 @@ struct AgentFloApp: App {
                     if newPhase == .active {
                         // Clear app icon badge when app comes to foreground
                         UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+                        // Check biometric lock timeout
+                        appState.biometricService.onForeground()
+                    } else if newPhase == .background {
+                        // Record background time for biometric lock
+                        appState.biometricService.onBackground()
                     }
                 }
                 .onOpenURL { url in
@@ -64,18 +69,18 @@ struct AgentFloApp: App {
                     if destination == "directMessage",
                        let conversationId = info?["conversationId"] as? UUID {
                         let senderName = info?["senderName"] as? String ?? ""
-                        appState.popToRoot(tab: .dashboard)
+                        appState.popToRoot(tab: .messages)
                         appState.deepLink(
-                            tab: .dashboard,
-                            destination: DashboardDestination.directMessaging(conversationId: conversationId, otherUserName: senderName)
+                            tab: .messages,
+                            destination: MessagesDestination.conversation(conversationId: conversationId, otherUserName: senderName)
                         )
                     } else if destination == "taskMessage",
                               let taskId = info?["taskId"] as? UUID {
                         let senderName = info?["senderName"] as? String ?? ""
-                        appState.popToRoot(tab: .dashboard)
+                        appState.popToRoot(tab: .messages)
                         appState.deepLink(
-                            tab: .dashboard,
-                            destination: DashboardDestination.messaging(taskId: taskId, otherUserName: senderName)
+                            tab: .messages,
+                            destination: MessagesDestination.taskConversation(taskId: taskId, otherUserName: senderName)
                         )
                     } else if let taskId = info?["taskId"] as? UUID {
                         appState.popToRoot(tab: .dashboard)
@@ -123,8 +128,10 @@ struct AgentFloApp: App {
             }
         case "messages":
             if let id = path.dropFirst().first.flatMap({ UUID(uuidString: $0) }) {
-                appState.popToRoot(tab: .dashboard)
-                appState.deepLink(tab: .dashboard, destination: DashboardDestination.directMessaging(conversationId: id, otherUserName: ""))
+                appState.popToRoot(tab: .messages)
+                appState.deepLink(tab: .messages, destination: MessagesDestination.conversation(conversationId: id, otherUserName: ""))
+            } else {
+                appState.selectedTab = .messages
             }
         case "agent":
             // Universal link: /agent/{slug} → public profile

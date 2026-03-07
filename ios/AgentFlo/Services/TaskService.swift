@@ -15,7 +15,7 @@ final class TaskService {
     func fetchTasks(forAgent agentId: UUID) async throws -> [AgentTask] {
         try await supabase
             .from("tasks")
-            .select(Self.taskColumns)
+            .select(Self.taskColumnsWithAgent)
             .eq("agent_id", value: agentId.uuidString)
             .order("created_at", ascending: false)
             .execute()
@@ -45,7 +45,7 @@ final class TaskService {
     func fetchTask(id: UUID) async throws -> AgentTask {
         try await supabase
             .from("tasks")
-            .select(Self.taskColumns)
+            .select(Self.taskColumnsWithAgent)
             .eq("id", value: id.uuidString)
             .single()
             .execute()

@@ -10,6 +10,12 @@ struct RootView: View {
             OnboardingFlowView(role: appState.onboardingRole)
         } else if appState.authService.isAuthenticated {
             MainTabView()
+                .overlay {
+                    if appState.biometricService.isLocked && appState.biometricService.isBiometricEnabled {
+                        LockScreenView()
+                            .transition(.opacity)
+                    }
+                }
         } else {
             LandingView()
         }

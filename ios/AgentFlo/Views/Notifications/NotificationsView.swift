@@ -77,8 +77,27 @@ struct NotificationsView: View {
             }
         }
 
-        if let taskIdStr = notification.data?["task_id"],
-           let taskId = UUID(uuidString: taskIdStr) {
+        // Route message notifications to Messages tab
+        if notification.type == "new_message" {
+            if let convIdStr = notification.data?["conversation_id"],
+               let convId = UUID(uuidString: convIdStr) {
+                let senderName = notification.data?["sender_name"] ?? ""
+                appState.popToRoot(tab: .messages)
+                appState.deepLink(
+                    tab: .messages,
+                    destination: MessagesDestination.conversation(conversationId: convId, otherUserName: senderName)
+                )
+            } else if let taskIdStr = notification.data?["task_id"],
+                      let taskId = UUID(uuidString: taskIdStr) {
+                let senderName = notification.data?["sender_name"] ?? ""
+                appState.popToRoot(tab: .messages)
+                appState.deepLink(
+                    tab: .messages,
+                    destination: MessagesDestination.taskConversation(taskId: taskId, otherUserName: senderName)
+                )
+            }
+        } else if let taskIdStr = notification.data?["task_id"],
+                  let taskId = UUID(uuidString: taskIdStr) {
             appState.selectedTab = .dashboard
             appState.dashboardPath.append(DashboardDestination.taskDetail(taskId))
         }
@@ -149,6 +168,8 @@ struct NotificationRow: View {
     @ViewBuilder
     private var notificationIcon: some View {
         switch notification.type {
+        case "new_message":
+            Image(systemName: "message.fill")
         case "task_accepted":
             Image(systemName: "checkmark.circle")
         case "task_in_progress":
