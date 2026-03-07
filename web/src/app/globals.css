@@ -43,15 +43,33 @@
   --spacing-card: 16px;
   --spacing-section: 24px;
 
+  /* Status Badge Colors */
+  --color-status-pending-bg: #EEF2FF;
+  --color-status-pending-text: #3B50CE;
+  --color-status-pending-dot: #6B80EE;
+  --color-status-active-bg: #E8F8EE;
+  --color-status-active-text: #1A8F4E;
+  --color-status-active-dot: #2DB96B;
+  --color-status-working-bg: #FFF8E6;
+  --color-status-working-text: #B07800;
+  --color-status-working-dot: #F59E0B;
+  --color-status-alert-bg: #FFF0F2;
+  --color-status-alert-text: #C8102E;
+  --color-status-alert-dot: #C8102E;
+  --color-status-done-bg: #F0F0F5;
+  --color-status-done-text: #5A5A7E;
+  --color-status-done-dot: #9A9AAE;
+
   /* Border Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-pill: 999px;
-  --radius-card: 16px;
+  --radius-card: 18px;
+  --radius-card-inner: 12px;
   --radius-input: 12px;
-  --radius-badge: 20px;
+  --radius-badge: 7px;
   --radius-tab-bar: 26px;
 
   /* Shadows */

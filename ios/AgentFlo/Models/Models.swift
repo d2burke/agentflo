@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - User
 
@@ -180,6 +181,84 @@ struct AgentTask: Codable, Identifiable {
 
     var isCheckInCheckOut: Bool {
         taskCategory?.isCheckInCheckOut ?? false
+    }
+
+    /// Category-aware display name for the task status
+    var categoryDisplayStatus: String {
+        guard let cat = taskCategory else { return status.displayName }
+        switch (cat, status) {
+        case (.photography, .inProgress): return "Shooting"
+        case (.photography, .deliverablesSubmitted): return "Delivered"
+        case (.staging, .deliverablesSubmitted), (.staging, .completed): return "Staged"
+        case (.openHouse, .accepted): return "Scheduled"
+        case (.openHouse, .inProgress): return "Live"
+        case (.inspection, .accepted): return "Confirmed"
+        case (.inspection, .inProgress): return "Inspecting"
+        case (.inspection, .deliverablesSubmitted): return "Report Ready"
+        case (_, .posted): return "Pending"
+        default: return status.displayName
+        }
+    }
+
+    /// Semantic status style category for badge coloring
+    var statusBadgeSemantic: StatusBadgeSemantic {
+        guard let cat = taskCategory else {
+            switch status {
+            case .draft: return .done
+            case .posted, .deliverablesSubmitted: return .pending
+            case .accepted, .completed: return .active
+            case .inProgress, .revisionRequested: return .working
+            case .cancelled: return .alert
+            }
+        }
+        switch (cat, status) {
+        case (_, .posted): return .pending
+        case (_, .cancelled): return .alert
+        case (.openHouse, .accepted): return .pending
+        case (_, .accepted): return .active
+        case (.openHouse, .inProgress): return .alert
+        case (_, .inProgress): return .working
+        case (.photography, .deliverablesSubmitted): return .active
+        case (.inspection, .deliverablesSubmitted): return .alert
+        case (_, .deliverablesSubmitted): return .pending
+        case (.staging, .completed): return .done
+        case (_, .completed): return .done
+        default: return .done
+        }
+    }
+}
+
+enum StatusBadgeSemantic {
+    case pending, active, working, alert, done
+
+    var backgroundColor: Color {
+        switch self {
+        case .pending: Color(red: 0.933, green: 0.949, blue: 1.0)
+        case .active:  Color(red: 0.910, green: 0.973, blue: 0.933)
+        case .working: Color(red: 1.0,   green: 0.973, blue: 0.902)
+        case .alert:   Color(red: 1.0,   green: 0.941, blue: 0.949)
+        case .done:    Color(red: 0.941, green: 0.941, blue: 0.961)
+        }
+    }
+
+    var textColor: Color {
+        switch self {
+        case .pending: Color(red: 0.231, green: 0.314, blue: 0.808)
+        case .active:  Color(red: 0.102, green: 0.561, blue: 0.306)
+        case .working: Color(red: 0.690, green: 0.471, blue: 0.0)
+        case .alert:   Color(red: 0.784, green: 0.063, blue: 0.180)
+        case .done:    Color(red: 0.353, green: 0.353, blue: 0.494)
+        }
+    }
+
+    var dotColor: Color {
+        switch self {
+        case .pending: Color(red: 0.420, green: 0.502, blue: 0.933)
+        case .active:  Color(red: 0.176, green: 0.725, blue: 0.420)
+        case .working: Color(red: 0.961, green: 0.620, blue: 0.043)
+        case .alert:   Color(red: 0.784, green: 0.063, blue: 0.180)
+        case .done:    Color(red: 0.604, green: 0.604, blue: 0.682)
+        }
     }
 }
 

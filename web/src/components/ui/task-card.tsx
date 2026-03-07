@@ -29,7 +29,7 @@ export function TaskCard({ task, className }: TaskCardProps) {
             <span className="text-sm font-bold text-navy truncate">
               {task.category}
             </span>
-            <StatusBadge status={task.status} />
+            <StatusBadge status={task.status} category={task.category} />
           </div>
 
           <div className="flex items-center gap-1.5 text-slate text-xs mb-2">

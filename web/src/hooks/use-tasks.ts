@@ -65,6 +65,14 @@ export function useApplications(taskId: string, enabled = true) {
   })
 }
 
+export function useVisitors(taskId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['visitors', taskId] as const,
+    queryFn: () => taskService.fetchVisitors(taskId),
+    enabled: !!taskId && enabled,
+  })
+}
+
 // ── Mutations ──
 
 export function usePostTask() {

@@ -2,15 +2,75 @@ import SwiftUI
 
 struct StatusBadge: View {
     let status: TaskStatus
+    var category: TaskCategory? = nil
+
+    private var semantic: StatusBadgeSemantic {
+        if let category {
+            // Build a temporary task-like mapping
+            return semanticFor(status: status, category: category)
+        }
+        // Fallback without category
+        switch status {
+        case .draft: return .done
+        case .posted, .deliverablesSubmitted: return .pending
+        case .accepted, .completed: return .active
+        case .inProgress, .revisionRequested: return .working
+        case .cancelled: return .alert
+        }
+    }
+
+    private var label: String {
+        if let category {
+            return displayStatusFor(status: status, category: category)
+        }
+        return status.displayName
+    }
 
     var body: some View {
-        Text(status.displayName)
-            .font(.captionSM)
-            .foregroundStyle(status.textColor)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.xs)
-            .background(status.backgroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.pill))
+        HStack(spacing: 4) {
+            Circle()
+                .fill(semantic.dotColor)
+                .frame(width: 5, height: 5)
+            Text(label)
+                .font(.custom("DMSans-Bold", size: 11))
+                .foregroundStyle(semantic.textColor)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(semantic.backgroundColor)
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+
+    private func displayStatusFor(status: TaskStatus, category: TaskCategory) -> String {
+        switch (category, status) {
+        case (.photography, .inProgress): return "Shooting"
+        case (.photography, .deliverablesSubmitted): return "Delivered"
+        case (.staging, .deliverablesSubmitted), (.staging, .completed): return "Staged"
+        case (.openHouse, .accepted): return "Scheduled"
+        case (.openHouse, .inProgress): return "Live"
+        case (.inspection, .accepted): return "Confirmed"
+        case (.inspection, .inProgress): return "Inspecting"
+        case (.inspection, .deliverablesSubmitted): return "Report Ready"
+        case (_, .posted): return "Pending"
+        default: return status.displayName
+        }
+    }
+
+    private func semanticFor(status: TaskStatus, category: TaskCategory) -> StatusBadgeSemantic {
+        switch (category, status) {
+        case (_, .posted): return .pending
+        case (_, .cancelled): return .alert
+        case (.openHouse, .accepted): return .pending
+        case (_, .accepted): return .active
+        case (.openHouse, .inProgress): return .alert
+        case (_, .inProgress): return .working
+        case (.photography, .deliverablesSubmitted): return .active
+        case (.inspection, .deliverablesSubmitted): return .alert
+        case (_, .deliverablesSubmitted): return .pending
+        case (.staging, .completed): return .done
+        case (_, .completed): return .done
+        default: return .done
+        }
     }
 }
 
@@ -25,26 +85,6 @@ extension TaskStatus {
         case .revisionRequested: "Revision"
         case .completed: "Completed"
         case .cancelled: "Cancelled"
-        }
-    }
-
-    var textColor: Color {
-        switch self {
-        case .draft: .agentSlate
-        case .posted, .deliverablesSubmitted: .agentBlue
-        case .accepted, .completed: .agentGreen
-        case .inProgress, .revisionRequested: .agentAmber
-        case .cancelled: .agentError
-        }
-    }
-
-    var backgroundColor: Color {
-        switch self {
-        case .draft: .agentBorderLight
-        case .posted, .deliverablesSubmitted: .agentBlueLight
-        case .accepted, .completed: .agentGreenLight
-        case .inProgress, .revisionRequested: .agentAmberLight
-        case .cancelled: .agentErrorLight
         }
     }
 
@@ -63,10 +103,11 @@ extension TaskStatus {
 }
 
 #Preview {
-    HStack(spacing: 8) {
+    VStack(spacing: 8) {
         StatusBadge(status: .posted)
-        StatusBadge(status: .inProgress)
+        StatusBadge(status: .inProgress, category: .photography)
+        StatusBadge(status: .inProgress, category: .openHouse)
+        StatusBadge(status: .deliverablesSubmitted, category: .inspection)
         StatusBadge(status: .completed)
-        StatusBadge(status: .cancelled)
     }
 }

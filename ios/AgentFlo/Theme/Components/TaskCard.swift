@@ -11,11 +11,11 @@ struct TaskCard: View {
                 HStack(spacing: Spacing.md) {
                     CategoryIcon(category: task.category)
                     Text(task.category)
-                        .font(.bodyEmphasis)
+                        .font(.taskName)
                         .foregroundStyle(.agentNavy)
                 }
                 Spacer()
-                StatusBadge(status: task.status)
+                StatusBadge(status: task.status, category: task.taskCategory)
             }
 
             // Row 2: Agent name (runner view only)
@@ -76,11 +76,11 @@ struct CategoryIcon: View {
 
     var body: some View {
         Image(systemName: iconName)
-            .font(.system(size: 20))
-            .foregroundStyle(.agentRed)
-            .frame(width: 40, height: 40)
-            .background(Color.agentRedLight)
-            .clipShape(Circle())
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 28, height: 28)
+            .background(Color.agentRed)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private var iconName: String {

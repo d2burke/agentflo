@@ -14,7 +14,7 @@ enum Spacing {
     // Layout-specific
     static let screenPadding: CGFloat = 20
     static let sectionGap: CGFloat = 24
-    static let cardPadding: CGFloat = 16
+    static let cardPadding: CGFloat = 15
     static let tabBarInset: CGFloat = 16
     static let tabBarHeight: CGFloat = 52
 }
@@ -23,7 +23,8 @@ enum Radius {
     static let sm: CGFloat = 8
     static let md: CGFloat = 10
     static let lg: CGFloat = 12
-    static let card: CGFloat = 12
+    static let card: CGFloat = 18
+    static let cardInner: CGFloat = 12
     static let input: CGFloat = 12
     static let pill: CGFloat = 999
     static let progress: CGFloat = 3

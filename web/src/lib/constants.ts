@@ -45,20 +45,66 @@ export const TASK_CATEGORIES: Record<TaskCategory, {
   },
 }
 
-// Status badge styling — matches design-tokens.ts statusBadge
+// Status semantic types
+export type StatusSemantic = 'pending' | 'active' | 'working' | 'alert' | 'done'
+
+// Status badge styling
 export const STATUS_BADGES: Record<TaskStatus, {
   label: string
+  semantic: StatusSemantic
+}> = {
+  draft: { label: 'Draft', semantic: 'done' },
+  posted: { label: 'Posted', semantic: 'pending' },
+  accepted: { label: 'Accepted', semantic: 'active' },
+  in_progress: { label: 'In Progress', semantic: 'working' },
+  deliverables_submitted: { label: 'Review', semantic: 'pending' },
+  revision_requested: { label: 'Revision', semantic: 'working' },
+  completed: { label: 'Completed', semantic: 'done' },
+  cancelled: { label: 'Cancelled', semantic: 'alert' },
+}
+
+// Semantic status colors (CSS variable-based)
+export const STATUS_SEMANTIC_STYLES: Record<StatusSemantic, {
   bgClass: string
   textClass: string
+  dotClass: string
 }> = {
-  draft: { label: 'Draft', bgClass: 'bg-border-light', textClass: 'text-slate' },
-  posted: { label: 'Posted', bgClass: 'bg-blue-light', textClass: 'text-blue' },
-  accepted: { label: 'Accepted', bgClass: 'bg-green-light', textClass: 'text-green' },
-  in_progress: { label: 'In Progress', bgClass: 'bg-amber-light', textClass: 'text-amber' },
-  deliverables_submitted: { label: 'Review', bgClass: 'bg-blue-light', textClass: 'text-blue' },
-  revision_requested: { label: 'Revision', bgClass: 'bg-amber-light', textClass: 'text-amber' },
-  completed: { label: 'Completed', bgClass: 'bg-green-light', textClass: 'text-green' },
-  cancelled: { label: 'Cancelled', bgClass: 'bg-error-light', textClass: 'text-error' },
+  pending: { bgClass: 'bg-[var(--color-status-pending-bg)]', textClass: 'text-[var(--color-status-pending-text)]', dotClass: 'bg-[var(--color-status-pending-dot)]' },
+  active: { bgClass: 'bg-[var(--color-status-active-bg)]', textClass: 'text-[var(--color-status-active-text)]', dotClass: 'bg-[var(--color-status-active-dot)]' },
+  working: { bgClass: 'bg-[var(--color-status-working-bg)]', textClass: 'text-[var(--color-status-working-text)]', dotClass: 'bg-[var(--color-status-working-dot)]' },
+  alert: { bgClass: 'bg-[var(--color-status-alert-bg)]', textClass: 'text-[var(--color-status-alert-text)]', dotClass: 'bg-[var(--color-status-alert-dot)]' },
+  done: { bgClass: 'bg-[var(--color-status-done-bg)]', textClass: 'text-[var(--color-status-done-text)]', dotClass: 'bg-[var(--color-status-done-dot)]' },
+}
+
+// Category-aware status display names
+export function getCategoryStatusLabel(status: TaskStatus, category?: TaskCategory): string {
+  if (!category) return STATUS_BADGES[status].label
+  const key = `${category}:${status}` as const
+  const overrides: Record<string, string> = {
+    'Photography:in_progress': 'Shooting',
+    'Photography:deliverables_submitted': 'Delivered',
+    'Staging:deliverables_submitted': 'Staged',
+    'Staging:completed': 'Staged',
+    'Open House:accepted': 'Scheduled',
+    'Open House:in_progress': 'Live',
+    'Inspection:accepted': 'Confirmed',
+    'Inspection:in_progress': 'Inspecting',
+    'Inspection:deliverables_submitted': 'Report Ready',
+  }
+  return overrides[key] ?? STATUS_BADGES[status].label
+}
+
+// Category-aware semantic mapping
+export function getCategoryStatusSemantic(status: TaskStatus, category?: TaskCategory): StatusSemantic {
+  if (!category) return STATUS_BADGES[status].semantic
+  const key = `${category}:${status}` as const
+  const overrides: Record<string, StatusSemantic> = {
+    'Open House:accepted': 'pending',
+    'Open House:in_progress': 'alert',
+    'Photography:deliverables_submitted': 'active',
+    'Inspection:deliverables_submitted': 'alert',
+  }
+  return overrides[key] ?? STATUS_BADGES[status].semantic
 }
 
 // ASHI inspection systems
