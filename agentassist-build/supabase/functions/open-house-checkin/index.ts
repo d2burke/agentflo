@@ -16,6 +16,18 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+const VALID_INTEREST_LEVELS = new Set(['just_looking', 'interested', 'very_interested'])
+
+async function findActiveOpenHouseTaskByToken(serviceClient: any, token: string) {
+  return await serviceClient
+    .from('tasks')
+    .select('id, property_address, category, agent_id, status')
+    .eq('qr_code_token', token)
+    .eq('category', 'Open House')
+    .eq('status', 'in_progress')
+    .single()
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -29,18 +41,14 @@ serve(async (req) => {
   try {
     if (req.method === 'GET') {
       const url = new URL(req.url)
-      const token = url.searchParams.get('token')
+      const token = url.searchParams.get('token')?.trim()
 
       if (!token) {
         return new Response('Missing token', { status: 400, headers: corsHeaders })
       }
 
-      // Look up task by QR token
-      const { data: task, error } = await serviceClient
-        .from('tasks')
-        .select('id, property_address, category, agent_id')
-        .eq('qr_code_token', token)
-        .single()
+      // Look up the active open house by QR token.
+      const { data: task, error } = await findActiveOpenHouseTaskByToken(serviceClient, token)
 
       if (error || !task) {
         return new Response(renderErrorPage('Invalid or expired check-in link.'), {
@@ -64,9 +72,19 @@ serve(async (req) => {
 
     if (req.method === 'POST') {
       const body = await req.json()
-      const { token, visitor_name, email, phone, interest_level, pre_approved, agent_represented, representing_agent_name } = body
+      const rawToken = typeof body.token === 'string' ? body.token.trim() : ''
+      const visitorName = typeof body.visitor_name === 'string' ? body.visitor_name.trim() : ''
+      const email = typeof body.email === 'string' ? body.email.trim() : ''
+      const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+      const interestLevel = VALID_INTEREST_LEVELS.has(body.interest_level)
+        ? body.interest_level
+        : 'interested'
+      const agentRepresented = body.agent_represented === true
+      const representingAgentName = typeof body.representing_agent_name === 'string'
+        ? body.representing_agent_name.trim()
+        : ''
 
-      if (!token || !visitor_name) {
+      if (!rawToken || !visitorName) {
         return new Response(JSON.stringify({ error: 'token and visitor_name are required' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -80,15 +98,11 @@ serve(async (req) => {
         })
       }
 
-      // Look up task by token
-      const { data: task, error: taskError } = await serviceClient
-        .from('tasks')
-        .select('id')
-        .eq('qr_code_token', token)
-        .single()
+      // Look up the active open house by token.
+      const { data: task, error: taskError } = await findActiveOpenHouseTaskByToken(serviceClient, rawToken)
 
       if (taskError || !task) {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        return new Response(JSON.stringify({ error: 'Invalid or expired check-in link.' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -99,13 +113,13 @@ serve(async (req) => {
         .from('open_house_visitors')
         .insert({
           task_id: task.id,
-          visitor_name,
+          visitor_name: visitorName,
           email: email || null,
           phone: phone || null,
-          interest_level: interest_level || 'interested',
-          pre_approved: pre_approved || false,
-          agent_represented: agent_represented || false,
-          representing_agent_name: representing_agent_name || null,
+          interest_level: interestLevel,
+          pre_approved: body.pre_approved === true,
+          agent_represented: agentRepresented,
+          representing_agent_name: agentRepresented && representingAgentName ? representingAgentName : null,
         })
         .select('id')
         .single()

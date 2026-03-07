@@ -1,10 +1,10 @@
 'use client'
 
-import { use, useState } from 'react'
+import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { InputField } from '@/components/ui/input-field'
 import { PillButton } from '@/components/ui/pill-button'
 import { CheckCircle, Home } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { InterestLevel } from '@/types/models'
@@ -15,8 +15,9 @@ const INTEREST_OPTIONS: { value: InterestLevel; label: string }[] = [
   { value: 'very_interested', label: 'Very Interested' },
 ]
 
-export default function OpenHouseCheckinPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: taskId } = use(params)
+export default function OpenHouseCheckinPage() {
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token')?.trim() ?? ''
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -29,22 +30,50 @@ export default function OpenHouseCheckinPage({ params }: { params: Promise<{ id:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name) return
+    const trimmedName = name.trim()
+    const trimmedEmail = email.trim()
+    const trimmedPhone = phone.trim()
+    const trimmedAgentName = agentName.trim()
+
+    if (!token) {
+      toast.error('This check-in link is invalid or has expired.')
+      return
+    }
+
+    if (!trimmedName) return
+
+    if (!trimmedEmail && !trimmedPhone) {
+      toast.error('Please provide an email or phone number.')
+      return
+    }
 
     setSubmitting(true)
     try {
-      const supabase = createClient()
-      const { error } = await supabase.from('open_house_visitors').insert({
-        task_id: taskId,
-        visitor_name: name,
-        email: email || null,
-        phone: phone || null,
-        interest_level: interest,
-        pre_approved: preApproved,
-        agent_represented: hasAgent,
-        representing_agent_name: hasAgent ? agentName : null,
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) {
+        throw new Error('Check-in is not configured.')
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/open-house-checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          visitor_name: trimmedName,
+          email: trimmedEmail || null,
+          phone: trimmedPhone || null,
+          interest_level: interest,
+          pre_approved: preApproved,
+          agent_represented: hasAgent,
+          representing_agent_name: hasAgent && trimmedAgentName ? trimmedAgentName : null,
+        }),
       })
-      if (error) throw error
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to check in')
+      }
+
       setSubmitted(true)
     } catch (err: any) {
       toast.error(err.message || 'Failed to check in')
@@ -62,6 +91,20 @@ export default function OpenHouseCheckinPage({ params }: { params: Promise<{ id:
           </div>
           <h1 className="text-2xl font-extrabold text-navy mb-2">Welcome!</h1>
           <p className="text-sm text-slate">You&apos;re checked in. Enjoy the open house!</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full text-center">
+          <div className="h-16 w-16 rounded-full bg-red-glow text-red flex items-center justify-center mx-auto mb-4">
+            <Home className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-navy mb-2">Invalid Check-In Link</h1>
+          <p className="text-sm text-slate">Ask the host to generate a new open house QR code.</p>
         </div>
       </div>
     )
