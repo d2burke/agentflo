@@ -26,6 +26,11 @@ type FunctionErrorWithContext = Error & {
   context?: Response
 }
 
+type SessionLike = {
+  access_token?: string
+  expires_at?: number | null
+} | null
+
 async function readFunctionErrorMessage(error: unknown, fallbackMessage: string): Promise<string> {
   const typedError = error as FunctionErrorWithContext | null
 
@@ -59,9 +64,38 @@ async function readFunctionErrorMessage(error: unknown, fallbackMessage: string)
   return fallbackMessage
 }
 
-function isUnauthorizedFunctionError(error: unknown): boolean {
+async function isRetryableAuthError(error: unknown): Promise<boolean> {
   const typedError = error as FunctionErrorWithContext | null
-  return typedError?.context?.status === 401
+  if (typedError?.context?.status === 401) {
+    return true
+  }
+
+  const message = await readFunctionErrorMessage(error, '')
+  const normalized = message.trim().toLowerCase()
+
+  return normalized === 'invalid jwt'
+    || normalized === 'jwt expired'
+    || normalized === 'unauthorized'
+}
+
+async function getFreshAccessToken(supabase: ReturnType<typeof createClient>) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  let activeSession = session as SessionLike
+  const expiresSoon = activeSession?.expires_at
+    ? activeSession.expires_at * 1000 <= Date.now() + 60_000
+    : !activeSession?.access_token
+
+  if (expiresSoon) {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (!error && data.session?.access_token) {
+      activeSession = data.session
+    }
+  }
+
+  return activeSession?.access_token ?? null
 }
 
 export const messageService = {
@@ -138,15 +172,20 @@ export const messageService = {
       metadata: params.metadata ?? {},
     }
 
+    let accessToken = await getFreshAccessToken(supabase)
+
     let { data, error } = await supabase.functions.invoke('send-message', {
       body: payload,
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     })
 
-    if (error && isUnauthorizedFunctionError(error)) {
-      const { error: refreshError } = await supabase.auth.refreshSession()
+    if (error && await isRetryableAuthError(error)) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
       if (!refreshError) {
+        accessToken = refreshData.session?.access_token ?? accessToken
         const retryResult = await supabase.functions.invoke('send-message', {
           body: payload,
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         })
         data = retryResult.data
         error = retryResult.error

@@ -85,6 +85,25 @@ describe('messageService', () => {
     })
 
     it('retries once after refreshing the session on a 401 function error', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'stale-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      })
+      mock.auth.refreshSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'fresh-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+          user: null,
+        },
+        error: null,
+      })
       mock.functions.invoke
         .mockResolvedValueOnce({
           data: null,
@@ -106,7 +125,7 @@ describe('messageService', () => {
             },
           },
           error: null,
-        })
+      })
 
       const message = await messageService.sendMessage({
         senderId: 'user-1',
@@ -117,7 +136,88 @@ describe('messageService', () => {
 
       expect(mock.auth.refreshSession).toHaveBeenCalledOnce()
       expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
+      expect(mock.functions.invoke).toHaveBeenNthCalledWith(1, 'send-message', {
+        body: {
+          body: 'Hello again!',
+          conversationId: 'conv-1',
+          taskId: undefined,
+          clientMessageId: '11111111-1111-4111-8111-111111111111',
+          messageType: 'text',
+          metadata: {},
+        },
+        headers: {
+          Authorization: 'Bearer stale-token',
+        },
+      })
+      expect(mock.functions.invoke).toHaveBeenNthCalledWith(2, 'send-message', {
+        body: {
+          body: 'Hello again!',
+          conversationId: 'conv-1',
+          taskId: undefined,
+          clientMessageId: '11111111-1111-4111-8111-111111111111',
+          messageType: 'text',
+          metadata: {},
+        },
+        headers: {
+          Authorization: 'Bearer fresh-token',
+        },
+      })
       expect(message.id).toBe('msg-1')
+    })
+
+    it('retries once after refreshing the session on an Invalid JWT response', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'stale-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      })
+      mock.auth.refreshSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'fresh-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+          user: null,
+        },
+        error: null,
+      })
+      mock.functions.invoke
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            message: 'Edge Function returned a non-2xx status code',
+            context: new Response(
+              JSON.stringify({ error: 'Invalid JWT' }),
+              { status: 500, headers: { 'Content-Type': 'application/json' } },
+            ),
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            message: {
+              id: 'msg-2',
+              conversation_id: 'conv-1',
+              sender_id: 'user-1',
+              body: 'Retried',
+            },
+          },
+          error: null,
+        })
+
+      const message = await messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Retried',
+        conversationId: 'conv-1',
+        clientMessageId: '22222222-2222-4222-8222-222222222222',
+      })
+
+      expect(mock.auth.refreshSession).toHaveBeenCalledOnce()
+      expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
+      expect(message.id).toBe('msg-2')
     })
 
     it('surfaces the edge function error body message', async () => {

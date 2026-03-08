@@ -46,13 +46,25 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     })
 
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser()
+    let user: { id: string } | null = null
+    let authError: { message: string } | null = null
+
+    try {
+      const authResult = await userClient.auth.getUser()
+      user = authResult.data.user
+      authError = authResult.error
+    } catch (error) {
+      const authMessage = error instanceof Error ? error.message : 'Unauthorized'
+      const status = /jwt/i.test(authMessage) ? 401 : 500
+
+      return new Response(JSON.stringify({ error: authMessage }), { status, headers })
+    }
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers })
+      return new Response(
+        JSON.stringify({ error: authError?.message ?? 'Unauthorized' }),
+        { status: 401, headers },
+      )
     }
 
     const senderId = user.id
