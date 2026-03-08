@@ -47,24 +47,24 @@ describe('messageService', () => {
   })
 
   describe('sendMessage', () => {
-    it('inserts message with correct columns', async () => {
-      mock.__setMockResult({ data: { id: 'msg-1' } })
+    it('invokes send-message edge function with correct params', async () => {
+      mock.__setMockResult({ data: { message: { id: 'msg-1', sender_id: 'user-1', body: 'Hello!' } } })
 
-      await messageService.sendMessage({
+      const result = await messageService.sendMessage({
         senderId: 'user-1',
         body: 'Hello!',
         conversationId: 'conv-1',
         taskId: 'task-1',
       })
 
-      expect(mock.from).toHaveBeenCalledWith('messages')
-      expect(mock.insert).toHaveBeenCalledWith({
-        sender_id: 'user-1',
-        body: 'Hello!',
-        conversation_id: 'conv-1',
-        task_id: 'task-1',
+      expect(mock.functions.invoke).toHaveBeenCalledWith('send-message', {
+        body: {
+          body: 'Hello!',
+          conversationId: 'conv-1',
+          taskId: 'task-1',
+        },
       })
-      expect(mock.single).toHaveBeenCalled()
+      expect(result).toEqual({ id: 'msg-1', sender_id: 'user-1', body: 'Hello!' })
     })
   })
 

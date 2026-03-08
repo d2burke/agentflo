@@ -25,6 +25,8 @@
 		824174A82F5B43F40059EDC8 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 824174A72F5B43F40059EDC8 /* FirebaseMessaging */; };
 		8269DC482F5384650000E27B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A1600001 /* Supabase */; };
 		8269DC492F5384650000E27B /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = A1600002 /* StripePaymentSheet */; };
+		829605A52F5C7E1300ED9EF3 /* StatChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829605A42F5C7E1300ED9EF3 /* StatChip.swift */; };
+		829605A72F5C7E2B00ED9EF3 /* LiveCounterCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 829605A62F5C7E2B00ED9EF3 /* LiveCounterCard.swift */; };
 		ABAE0886D762D9A3A1DC000B /* MessagingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEABECD1381E019B94554C63 /* MessagingView.swift */; };
 		AE8237E0D0AFE56B97F56E9B /* ModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AD8A19F47418269C282F35 /* ModelsTests.swift */; };
 		B1000001 /* AgentFloApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000001 /* AgentFloApp.swift */; };
@@ -133,6 +135,8 @@
 		5E7086175DF9C17DD8912E4E /* AgentFloTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AgentFloTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E97A8720A5307092EBA1A71 /* BiometricAuthService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BiometricAuthService.swift; sourceTree = "<group>"; };
 		824174932F5A6B000059EDC8 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		829605A42F5C7E1300ED9EF3 /* StatChip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatChip.swift; sourceTree = "<group>"; };
+		829605A62F5C7E2B00ED9EF3 /* LiveCounterCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCounterCard.swift; sourceTree = "<group>"; };
 		8532C8D5D334FFA646C0FDEE /* ConversationPreview.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConversationPreview.swift; sourceTree = "<group>"; };
 		875F9B3BBD883279C734E637 /* DocumentListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DocumentListView.swift; sourceTree = "<group>"; };
 		8DE9FC89E4B9C34508ECB57E /* CheckInCheckOutCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CheckInCheckOutCard.swift; sourceTree = "<group>"; };
@@ -424,6 +428,8 @@
 				A1000042 /* CachedAvatarView.swift */,
 				A1000051 /* ShareSheet.swift */,
 				A1000070 /* FlowLayout.swift */,
+				829605A42F5C7E1300ED9EF3 /* StatChip.swift */,
+				829605A62F5C7E2B00ED9EF3 /* LiveCounterCard.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -657,10 +663,12 @@
 				B100003D /* OnboardingTaskFormView.swift in Sources */,
 				B100003E /* ChangePasswordSheet.swift in Sources */,
 				B100003F /* BrokerageCompleter.swift in Sources */,
+				829605A52F5C7E1300ED9EF3 /* StatChip.swift in Sources */,
 				B1000040 /* AllTasksView.swift in Sources */,
 				E1A0000001000002 /* AvatarView.swift in Sources */,
 				BEBB2D9E682307D8E122C0EE /* LocationService.swift in Sources */,
 				0ACEBC2814D425BD00A3C461 /* StorageService.swift in Sources */,
+				829605A72F5C7E2B00ED9EF3 /* LiveCounterCard.swift in Sources */,
 				660E25F31F8B3AC7D1D3BA35 /* PhotoUploadView.swift in Sources */,
 				BAF03EEF121BBC85C2D82139 /* CameraView.swift in Sources */,
 				28187433EA96A1CD21625492 /* DocumentUploadView.swift in Sources */,

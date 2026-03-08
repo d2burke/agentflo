@@ -90,11 +90,11 @@ describe('STATUS_BADGES', () => {
     }
   })
 
-  it('each badge has label, bgClass, and textClass', () => {
+  it('each badge has label and semantic', () => {
     for (const [, badge] of Object.entries(STATUS_BADGES)) {
       expect(badge).toHaveProperty('label')
-      expect(badge).toHaveProperty('bgClass')
-      expect(badge).toHaveProperty('textClass')
+      expect(badge).toHaveProperty('semantic')
+      expect(['pending', 'active', 'working', 'alert', 'done']).toContain(badge.semantic)
     }
   })
 })
