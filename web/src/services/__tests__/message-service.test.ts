@@ -52,6 +52,15 @@ describe('messageService', () => {
 
   describe('sendMessage', () => {
     it('invokes the edge function with canonical payload fields', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      })
       mock.__setMockResult({
         data: {
           message: {
@@ -80,6 +89,9 @@ describe('messageService', () => {
           clientMessageId: 'client-1',
           messageType: 'text',
           metadata: {},
+        },
+        headers: {
+          Authorization: 'Bearer token',
         },
       })
     })
@@ -221,6 +233,15 @@ describe('messageService', () => {
     })
 
     it('surfaces the edge function error body message', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      })
       mock.functions.invoke.mockResolvedValueOnce({
         data: null,
         error: {
@@ -238,6 +259,53 @@ describe('messageService', () => {
         conversationId: 'conv-1',
         clientMessageId: '11111111-1111-4111-8111-111111111111',
       })).rejects.toThrow('Conversation not found')
+    })
+
+    it('fails with a session expired message when no access token is available', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      })
+
+      await expect(messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello?',
+        conversationId: 'conv-1',
+        clientMessageId: '11111111-1111-4111-8111-111111111111',
+      })).rejects.toThrow('Session expired. Please sign in again.')
+    })
+
+    it('fails with a session expired message when auth retry still fails', async () => {
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'stale-token',
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        error: null,
+      })
+      mock.auth.refreshSession.mockResolvedValue({
+        data: { session: null, user: null },
+        error: new Error('Refresh failed'),
+      })
+      mock.functions.invoke.mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(
+            JSON.stringify({ error: 'Invalid JWT' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } },
+          ),
+        },
+      })
+
+      await expect(messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello?',
+        conversationId: 'conv-1',
+        clientMessageId: '11111111-1111-4111-8111-111111111111',
+      })).rejects.toThrow('Session expired. Please sign in again.')
     })
   })
 

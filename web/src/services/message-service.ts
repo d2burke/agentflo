@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/client'
 import type { Conversation, ConversationPreview, Message, MessageType } from '@/types/models'
+import type { RealtimePostgresInsertPayload, SupabaseClient } from '@supabase/supabase-js'
 
 export const MESSAGE_PAGE_SIZE = 50
+const SESSION_EXPIRED_MESSAGE = 'Session expired. Please sign in again.'
 
 function unwrapSingleRecord<T>(data: T | T[] | null, errorMessage: string): T {
   if (Array.isArray(data)) {
@@ -78,7 +80,7 @@ async function isRetryableAuthError(error: unknown): Promise<boolean> {
     || normalized === 'unauthorized'
 }
 
-async function getFreshAccessToken(supabase: ReturnType<typeof createClient>) {
+async function getFreshAccessToken(supabase: SupabaseClient) {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -173,6 +175,9 @@ export const messageService = {
     }
 
     let accessToken = await getFreshAccessToken(supabase)
+    if (!accessToken) {
+      throw new Error(SESSION_EXPIRED_MESSAGE)
+    }
 
     let { data, error } = await supabase.functions.invoke('send-message', {
       body: payload,
@@ -183,16 +188,21 @@ export const messageService = {
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
       if (!refreshError) {
         accessToken = refreshData.session?.access_token ?? accessToken
-        const retryResult = await supabase.functions.invoke('send-message', {
-          body: payload,
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        })
-        data = retryResult.data
-        error = retryResult.error
+        if (accessToken) {
+          const retryResult = await supabase.functions.invoke('send-message', {
+            body: payload,
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          data = retryResult.data
+          error = retryResult.error
+        }
       }
     }
 
     if (error) {
+      if (await isRetryableAuthError(error)) {
+        throw new Error(SESSION_EXPIRED_MESSAGE)
+      }
       throw new Error(await readFunctionErrorMessage(error, 'Failed to send message'))
     }
     if (!data?.message) {
@@ -242,7 +252,7 @@ export const messageService = {
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => callback(normalizeMessage(payload.new as Message)),
+        (payload: RealtimePostgresInsertPayload<Message>) => callback(normalizeMessage(payload.new)),
       )
       .subscribe()
   },
