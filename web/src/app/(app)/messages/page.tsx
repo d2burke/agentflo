@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/components/ui/avatar'
+import { createClientMessageId } from '@/lib/client-message-id'
 import { messageService, MESSAGE_PAGE_SIZE } from '@/services/message-service'
 import { useAppStore } from '@/stores/app-store'
 import { cn, timeAgo } from '@/lib/utils'
@@ -112,14 +113,6 @@ function patchConversationList(
         : preview
     )),
   )
-}
-
-function createClientMessageId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID()
-  }
-
-  return `client-${Date.now()}`
 }
 
 export default function MessagesPage() {
