@@ -22,6 +22,48 @@ function normalizeMessage(message: Message): Message {
   }
 }
 
+type FunctionErrorWithContext = Error & {
+  context?: Response
+}
+
+async function readFunctionErrorMessage(error: unknown, fallbackMessage: string): Promise<string> {
+  const typedError = error as FunctionErrorWithContext | null
+
+  if (typedError?.context) {
+    const response = typedError.context
+
+    try {
+      const payload = await response.clone().json() as Record<string, unknown>
+      if (typeof payload.error === 'string' && payload.error) {
+        return payload.error
+      }
+      if (typeof payload.message === 'string' && payload.message) {
+        return payload.message
+      }
+    } catch {
+      try {
+        const text = await response.clone().text()
+        if (text) {
+          return text
+        }
+      } catch {
+        // Ignore parse failures and fall back to generic error handling.
+      }
+    }
+  }
+
+  if (typedError?.message && typedError.message !== 'Edge Function returned a non-2xx status code') {
+    return typedError.message
+  }
+
+  return fallbackMessage
+}
+
+function isUnauthorizedFunctionError(error: unknown): boolean {
+  const typedError = error as FunctionErrorWithContext | null
+  return typedError?.context?.status === 401
+}
+
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -87,18 +129,33 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    const { data, error } = await supabase.functions.invoke('send-message', {
-      body: {
-        body: params.body,
-        conversationId: params.conversationId ?? undefined,
-        taskId: params.taskId ?? undefined,
-        clientMessageId: params.clientMessageId ?? undefined,
-        messageType: params.messageType ?? 'text',
-        metadata: params.metadata ?? {},
-      },
+    const payload = {
+      body: params.body,
+      conversationId: params.conversationId ?? undefined,
+      taskId: params.taskId ?? undefined,
+      clientMessageId: params.clientMessageId ?? undefined,
+      messageType: params.messageType ?? 'text',
+      metadata: params.metadata ?? {},
+    }
+
+    let { data, error } = await supabase.functions.invoke('send-message', {
+      body: payload,
     })
 
-    if (error) throw error
+    if (error && isUnauthorizedFunctionError(error)) {
+      const { error: refreshError } = await supabase.auth.refreshSession()
+      if (!refreshError) {
+        const retryResult = await supabase.functions.invoke('send-message', {
+          body: payload,
+        })
+        data = retryResult.data
+        error = retryResult.error
+      }
+    }
+
+    if (error) {
+      throw new Error(await readFunctionErrorMessage(error, 'Failed to send message'))
+    }
     if (!data?.message) {
       throw new Error('send-message returned no message payload')
     }

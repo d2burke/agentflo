@@ -40,6 +40,7 @@ export function createMockSupabaseClient() {
     signInWithPassword: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
     signOut: vi.fn().mockResolvedValue({ error: null }),
     getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    refreshSession: vi.fn().mockResolvedValue({ data: { session: null, user: null }, error: null }),
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
     mfa: {

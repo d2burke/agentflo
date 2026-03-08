@@ -83,6 +83,62 @@ describe('messageService', () => {
         },
       })
     })
+
+    it('retries once after refreshing the session on a 401 function error', async () => {
+      mock.functions.invoke
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            message: 'Edge Function returned a non-2xx status code',
+            context: new Response(
+              JSON.stringify({ error: 'Unauthorized' }),
+              { status: 401, headers: { 'Content-Type': 'application/json' } },
+            ),
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            message: {
+              id: 'msg-1',
+              conversation_id: 'conv-1',
+              sender_id: 'user-1',
+              body: 'Hello again!',
+            },
+          },
+          error: null,
+        })
+
+      const message = await messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello again!',
+        conversationId: 'conv-1',
+        clientMessageId: '11111111-1111-4111-8111-111111111111',
+      })
+
+      expect(mock.auth.refreshSession).toHaveBeenCalledOnce()
+      expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
+      expect(message.id).toBe('msg-1')
+    })
+
+    it('surfaces the edge function error body message', async () => {
+      mock.functions.invoke.mockResolvedValueOnce({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(
+            JSON.stringify({ error: 'Conversation not found' }),
+            { status: 404, headers: { 'Content-Type': 'application/json' } },
+          ),
+        },
+      })
+
+      await expect(messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello?',
+        conversationId: 'conv-1',
+        clientMessageId: '11111111-1111-4111-8111-111111111111',
+      })).rejects.toThrow('Conversation not found')
+    })
   })
 
   describe('getOrCreateConversation', () => {

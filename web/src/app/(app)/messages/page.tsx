@@ -444,8 +444,8 @@ function MessageThread({
 
     try {
       await deliverMessage(draft)
-    } catch {
-      toast.error('Failed to send message')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send message')
       setInput(trimmed)
     }
   }
@@ -453,8 +453,8 @@ function MessageThread({
   async function retryMessage(message: Message) {
     try {
       await deliverMessage({ ...message, delivery_status: 'sending' })
-    } catch {
-      toast.error('Failed to resend message')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to resend message')
     }
   }
 
