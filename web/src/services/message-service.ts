@@ -3,7 +3,7 @@ import type { Conversation, ConversationPreview, Message, MessageType } from '@/
 import type { RealtimePostgresInsertPayload, SupabaseClient } from '@supabase/supabase-js'
 
 export const MESSAGE_PAGE_SIZE = 50
-const SESSION_EXPIRED_MESSAGE = 'Session expired. Please sign in again.'
+export const SESSION_EXPIRED_MESSAGE = 'Session expired. Please sign in again.'
 
 function unwrapSingleRecord<T>(data: T | T[] | null, errorMessage: string): T {
   if (Array.isArray(data)) {
@@ -176,6 +176,7 @@ export const messageService = {
 
     let accessToken = await getFreshAccessToken(supabase)
     if (!accessToken) {
+      await supabase.auth.signOut()
       throw new Error(SESSION_EXPIRED_MESSAGE)
     }
 
@@ -201,6 +202,7 @@ export const messageService = {
 
     if (error) {
       if (await isRetryableAuthError(error)) {
+        await supabase.auth.signOut()
         throw new Error(SESSION_EXPIRED_MESSAGE)
       }
       throw new Error(await readFunctionErrorMessage(error, 'Failed to send message'))

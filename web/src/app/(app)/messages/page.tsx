@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -14,7 +14,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/components/ui/avatar'
 import { createClientMessageId } from '@/lib/client-message-id'
-import { messageService, MESSAGE_PAGE_SIZE } from '@/services/message-service'
+import { messageService, MESSAGE_PAGE_SIZE, SESSION_EXPIRED_MESSAGE } from '@/services/message-service'
 import { useAppStore } from '@/stores/app-store'
 import { cn, timeAgo } from '@/lib/utils'
 import type { ConversationPreview, Message } from '@/types/models'
@@ -300,6 +300,8 @@ function MessageThread({
   userId: string
   onBack: () => void
 }) {
+  const router = useRouter()
+  const { setUser } = useAppStore()
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
@@ -445,7 +447,13 @@ function MessageThread({
     try {
       await deliverMessage(draft)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send message')
+      const message = error instanceof Error ? error.message : 'Failed to send message'
+      toast.error(message)
+      if (message === SESSION_EXPIRED_MESSAGE) {
+        setUser(null)
+        router.replace('/login')
+        return
+      }
       setInput(trimmed)
     }
   }
@@ -454,7 +462,12 @@ function MessageThread({
     try {
       await deliverMessage({ ...message, delivery_status: 'sending' })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to resend message')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resend message'
+      toast.error(errorMessage)
+      if (errorMessage === SESSION_EXPIRED_MESSAGE) {
+        setUser(null)
+        router.replace('/login')
+      }
     }
   }
 
