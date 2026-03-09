@@ -59,6 +59,11 @@ final class MessageService {
         return record
     }
 
+    private func authHeaders() async throws -> [String: String] {
+        let session = try await supabase.auth.refreshSession()
+        return ["Authorization": "Bearer \(session.accessToken)"]
+    }
+
     // MARK: - Fetch Messages
 
     func fetchMessages(taskId: UUID) async throws -> [Message] {
@@ -111,10 +116,11 @@ final class MessageService {
             metadata: [:]
         )
         let bodyData = try JSONEncoder().encode(payload)
+        let headers = try await authHeaders()
 
         let response: SendMessageResponse = try await supabase.functions.invoke(
             "send-message",
-            options: .init(body: bodyData)
+            options: .init(headers: headers, body: bodyData)
         )
 
         return response.message

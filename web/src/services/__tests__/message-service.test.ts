@@ -58,24 +58,24 @@ describe('messageService', () => {
   })
 
   describe('sendMessage', () => {
-    it('inserts the message through the browser Supabase client', async () => {
+    it('sends the message through the server route', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.getSession.mockResolvedValue({
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
           id: 'msg-1',
           conversation_id: 'conv-1',
           task_id: 'task-1',
           sender_id: 'user-1',
           body: 'Hello!',
-        },
-      })
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({ jobs: [{ push_sent: true }] }),
+          },
+        })),
       } as unknown as Response)
 
       await messageService.sendMessage({
@@ -86,37 +86,40 @@ describe('messageService', () => {
         clientMessageId: 'client-1',
       })
 
-      expect(mock.from).toHaveBeenCalledWith('messages')
-      expect(mock.insert).toHaveBeenCalledWith({
-        sender_id: 'user-1',
-        body: 'Hello!',
-        conversation_id: 'conv-1',
-        task_id: 'task-1',
-        client_message_id: 'client-1',
-        message_type: 'text',
-        metadata: {},
-      })
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/messages/notify',
+        '/api/messages/send',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            body: 'Hello!',
+            conversation_id: 'conv-1',
+            task_id: 'task-1',
+            clientMessageId: 'client-1',
+            conversationId: 'conv-1',
+            taskId: 'task-1',
+            messageType: 'text',
+            metadata: {},
+          }),
         },
       )
     })
 
-    it('surfaces message insert errors', async () => {
+    it('surfaces message send errors', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.getSession.mockResolvedValue({
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        error: { message: 'new row violates row-level security policy' },
-      })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          error: 'new row violates row-level security policy',
+        })),
+      } as unknown as Response)
 
       await expect(messageService.sendMessage({
         senderId: 'user-1',
@@ -155,18 +158,18 @@ describe('messageService', () => {
         },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
           id: 'msg-2',
           conversation_id: 'conv-1',
           task_id: null,
           sender_id: 'user-1',
           body: 'Hello?',
-        },
-      })
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: vi.fn().mockResolvedValue({ jobs: [{ push_sent: true }] }),
+          },
+        })),
       } as unknown as Response)
 
       await messageService.sendMessage({
@@ -177,14 +180,12 @@ describe('messageService', () => {
       })
 
       expect(mock.auth.refreshSession).toHaveBeenCalled()
-      expect(mock.insert).toHaveBeenCalled()
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/messages/notify',
+        '/api/messages/send',
         expect.objectContaining({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({}),
         }),
       )
     })
@@ -200,28 +201,26 @@ describe('messageService', () => {
       })).rejects.toThrow('Session expired. Please sign in again.')
     })
 
-    it('returns the existing message after a duplicate client_message_id conflict', async () => {
+    it('returns the message from the server response', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.getSession.mockResolvedValue({
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        error: { message: 'duplicate key value violates unique constraint', code: '23505' },
-      })
-      mock.limit.mockImplementationOnce(() => ({
-        then: (resolve: (value: unknown) => unknown) => resolve({
-          data: [{
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
             id: 'msg-existing',
             conversation_id: 'conv-1',
             task_id: null,
             sender_id: 'user-1',
             body: 'Hello?',
             client_message_id: '11111111-1111-4111-8111-111111111111',
-          }],
-          error: null,
-        }),
-      }))
+          },
+        })),
+      } as unknown as Response)
 
       const message = await messageService.sendMessage({
         senderId: 'user-1',
@@ -233,33 +232,24 @@ describe('messageService', () => {
       expect(message.id).toBe('msg-existing')
     })
 
-    it('does not fail the send when notification dispatch fails', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    it('maps unauthorized send responses to session expiry', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.getSession.mockResolvedValue({
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
-          id: 'msg-3',
-          conversation_id: 'conv-1',
-          task_id: null,
-          sender_id: 'user-1',
-          body: 'Hello!',
-        },
-      })
-      global.fetch = vi.fn().mockRejectedValue(new Error('network error'))
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Unauthorized' })),
+      } as unknown as Response)
 
-      const message = await messageService.sendMessage({
+      await expect(messageService.sendMessage({
         senderId: 'user-1',
         body: 'Hello!',
         conversationId: 'conv-1',
         clientMessageId: '33333333-3333-4333-8333-333333333333',
-      })
-
-      expect(message.id).toBe('msg-3')
-      consoleSpy.mockRestore()
+      })).rejects.toThrow('Session expired. Please sign in again.')
     })
   })
 
