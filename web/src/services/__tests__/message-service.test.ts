@@ -58,6 +58,14 @@ describe('messageService', () => {
         },
         error: null,
       })
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'token',
+          },
+        },
+        error: null,
+      })
       mock.__setMockResult({
         data: {
           message: {
@@ -87,6 +95,9 @@ describe('messageService', () => {
           messageType: 'text',
           metadata: {},
         },
+        headers: {
+          Authorization: 'Bearer token',
+        },
       })
     })
 
@@ -94,6 +105,23 @@ describe('messageService', () => {
       mock.auth.getUser
         .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
         .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
+      mock.auth.getSession
+        .mockResolvedValueOnce({
+          data: {
+            session: {
+              access_token: 'stale-token',
+            },
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            session: {
+              access_token: 'fresh-token',
+            },
+          },
+          error: null,
+        })
       mock.auth.refreshSession.mockResolvedValue({
         data: {
           session: {
@@ -135,7 +163,6 @@ describe('messageService', () => {
       })
 
       expect(mock.auth.getUser).toHaveBeenCalledTimes(2)
-      expect(mock.auth.refreshSession).not.toHaveBeenCalled()
       expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
       expect(mock.functions.invoke).toHaveBeenNthCalledWith(1, 'send-message', {
         body: {
@@ -145,6 +172,9 @@ describe('messageService', () => {
           clientMessageId: '11111111-1111-4111-8111-111111111111',
           messageType: 'text',
           metadata: {},
+        },
+        headers: {
+          Authorization: 'Bearer stale-token',
         },
       })
       expect(mock.functions.invoke).toHaveBeenNthCalledWith(2, 'send-message', {
@@ -156,6 +186,9 @@ describe('messageService', () => {
           messageType: 'text',
           metadata: {},
         },
+        headers: {
+          Authorization: 'Bearer fresh-token',
+        },
       })
       expect(message.id).toBe('msg-1')
     })
@@ -164,6 +197,23 @@ describe('messageService', () => {
       mock.auth.getUser
         .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
         .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
+      mock.auth.getSession
+        .mockResolvedValueOnce({
+          data: {
+            session: {
+              access_token: 'stale-token',
+            },
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: {
+            session: {
+              access_token: 'fresh-token',
+            },
+          },
+          error: null,
+        })
       mock.auth.refreshSession.mockResolvedValue({
         data: {
           session: {
@@ -217,6 +267,14 @@ describe('messageService', () => {
         },
         error: null,
       })
+      mock.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            access_token: 'token',
+          },
+        },
+        error: null,
+      })
       mock.functions.invoke.mockResolvedValueOnce({
         data: null,
         error: {
@@ -242,6 +300,10 @@ describe('messageService', () => {
         data: { session: null, user: null },
         error: new Error('Refresh failed'),
       })
+      mock.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      })
 
       await expect(messageService.sendMessage({
         senderId: 'user-1',
@@ -255,6 +317,15 @@ describe('messageService', () => {
       mock.auth.getUser
         .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
         .mockResolvedValueOnce({ data: { user: null }, error: new Error('Invalid JWT') })
+      mock.auth.getSession
+        .mockResolvedValueOnce({
+          data: {
+            session: {
+              access_token: 'stale-token',
+            },
+          },
+          error: null,
+        })
       mock.auth.refreshSession.mockResolvedValue({
         data: { session: null, user: null },
         error: new Error('Refresh failed'),

@@ -98,6 +98,23 @@ async function ensureAuthenticatedClient(supabase: SupabaseClient) {
   return !refreshedUserError && !!refreshedUser
 }
 
+async function getAccessTokenForFunctions(supabase: SupabaseClient) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (session?.access_token) {
+    return session.access_token
+  }
+
+  const { data, error } = await supabase.auth.refreshSession()
+  if (error || !data.session?.access_token) {
+    return null
+  }
+
+  return data.session.access_token
+}
+
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -177,15 +194,30 @@ export const messageService = {
       throw new Error(SESSION_EXPIRED_MESSAGE)
     }
 
+    const accessToken = await getAccessTokenForFunctions(supabase)
+    if (!accessToken) {
+      throw new Error(SESSION_EXPIRED_MESSAGE)
+    }
+
     let { data, error } = await supabase.functions.invoke('send-message', {
       body: payload,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     })
 
     if (error && await isRetryableAuthError(error)) {
       const reauthenticated = await ensureAuthenticatedClient(supabase)
       if (reauthenticated) {
+        const retriedAccessToken = await getAccessTokenForFunctions(supabase)
+        if (!retriedAccessToken) {
+          throw new Error(SESSION_EXPIRED_MESSAGE)
+        }
         const retryResult = await supabase.functions.invoke('send-message', {
           body: payload,
+          headers: {
+            Authorization: `Bearer ${retriedAccessToken}`,
+          },
         })
         data = retryResult.data
         error = retryResult.error
