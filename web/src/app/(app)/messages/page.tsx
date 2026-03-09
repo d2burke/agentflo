@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -14,7 +14,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Avatar } from '@/components/ui/avatar'
 import { createClientMessageId } from '@/lib/client-message-id'
-import { messageService, MESSAGE_PAGE_SIZE, SESSION_EXPIRED_MESSAGE } from '@/services/message-service'
+import { messageService, MESSAGE_PAGE_SIZE } from '@/services/message-service'
 import { useAppStore } from '@/stores/app-store'
 import { cn, timeAgo } from '@/lib/utils'
 import type { ConversationPreview, Message } from '@/types/models'
@@ -320,8 +320,6 @@ function MessageThread({
   userId: string
   onBack: () => void
 }) {
-  const router = useRouter()
-  const { setUser } = useAppStore()
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [input, setInput] = useState('')
@@ -484,11 +482,6 @@ function MessageThread({
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to send message'
       toast.error(message)
-      if (message === SESSION_EXPIRED_MESSAGE) {
-        setUser(null)
-        router.replace('/login')
-        return
-      }
       setInput(trimmed)
     }
   }
@@ -499,10 +492,6 @@ function MessageThread({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to resend message'
       toast.error(errorMessage)
-      if (errorMessage === SESSION_EXPIRED_MESSAGE) {
-        setUser(null)
-        router.replace('/login')
-      }
     }
   }
 

@@ -54,6 +54,32 @@ async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<str
   return session.access_token
 }
 
+async function sendMessageViaServerRoute(
+  payload: Record<string, unknown>,
+  accessToken: string | null,
+): Promise<Response> {
+  const sendRequest = (token: string | null) => fetch('/api/messages/send', {
+    method: 'POST',
+    headers: token
+      ? {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      }
+      : {
+        'Content-Type': 'application/json',
+      },
+    body: JSON.stringify(payload),
+  })
+
+  const response = await sendRequest(accessToken)
+
+  if (response.status === 401 && accessToken) {
+    return sendRequest(null)
+  }
+
+  return response
+}
+
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -119,7 +145,13 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    const accessToken = await ensureAuthenticatedSession(supabase)
+    let accessToken: string | null = null
+
+    try {
+      accessToken = await ensureAuthenticatedSession(supabase)
+    } catch {
+      accessToken = null
+    }
 
     const payload: Record<string, unknown> = {
       body: params.body,
@@ -132,14 +164,7 @@ export const messageService = {
       metadata: params.metadata ?? {},
     }
 
-    const response = await fetch('/api/messages/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
-    })
+    const response = await sendMessageViaServerRoute(payload, accessToken)
 
     const responseText = await response.text()
     let parsed: { error?: string; message?: Message } = {}

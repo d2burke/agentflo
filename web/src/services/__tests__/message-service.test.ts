@@ -137,6 +137,11 @@ describe('messageService', () => {
         data: { session: null, user: null },
         error: new Error('refresh failed'),
       })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Unauthorized' })),
+      } as unknown as Response)
 
       await expect(messageService.sendMessage({
         senderId: 'user-1',
@@ -194,6 +199,11 @@ describe('messageService', () => {
 
     it('fails with a session expired message when no authenticated user is present', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Unauthorized' })),
+      } as unknown as Response)
 
       await expect(messageService.sendMessage({
         senderId: 'user-1',
