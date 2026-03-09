@@ -3,10 +3,60 @@ import '@testing-library/jest-dom'
 
 // ── Chainable Supabase Mock Factory ──
 
-export function createMockSupabaseClient() {
-  let mockResolvedValue: any = { data: null, error: null }
+type MockQueryResult = {
+  data: unknown | null
+  error: unknown | null
+}
 
-  const chain: any = {}
+type MockFn = ReturnType<typeof vi.fn>
+
+type MockSupabaseClient = Record<string, unknown> & {
+  from: MockFn
+  select: MockFn
+  insert: MockFn
+  update: MockFn
+  delete: MockFn
+  upsert: MockFn
+  eq: MockFn
+  neq: MockFn
+  or: MockFn
+  is: MockFn
+  in: MockFn
+  order: MockFn
+  limit: MockFn
+  single: MockFn
+  rpc: MockFn
+  functions: {
+    invoke: MockFn
+  }
+  auth: {
+    signUp: MockFn
+    signInWithPassword: MockFn
+    signOut: MockFn
+    getUser: MockFn
+    getSession: MockFn
+    refreshSession: MockFn
+    resetPasswordForEmail: MockFn
+    onAuthStateChange: MockFn
+    mfa: {
+      enroll: MockFn
+      challenge: MockFn
+      verify: MockFn
+      listFactors: MockFn
+      unenroll: MockFn
+    }
+  }
+  storage: {
+    from: MockFn
+  }
+  channel: MockFn
+  __setMockResult: (result: { data?: unknown; error?: unknown }) => void
+}
+
+export function createMockSupabaseClient() {
+  let mockResolvedValue: MockQueryResult = { data: null, error: null }
+
+  const chain = {} as MockSupabaseClient
 
   // Methods that continue the chain
   const chainMethods = [
@@ -19,14 +69,14 @@ export function createMockSupabaseClient() {
       // Return a thenable chain (Supabase queries are PromiseLike)
       return Object.assign(
         Object.create(chain),
-        { then: (resolve: any) => resolve(mockResolvedValue) },
+        { then: (resolve: (value: MockQueryResult) => unknown) => resolve(mockResolvedValue) },
       )
     })
   }
 
   // RPC calls
   chain.rpc = vi.fn().mockImplementation(() => ({
-    then: (resolve: any) => resolve(mockResolvedValue),
+    then: (resolve: (value: MockQueryResult) => unknown) => resolve(mockResolvedValue),
   }))
 
   // Edge functions
@@ -70,7 +120,7 @@ export function createMockSupabaseClient() {
   })
 
   // Helper to set what queries resolve to
-  chain.__setMockResult = (result: { data?: any; error?: any }) => {
+  chain.__setMockResult = (result: { data?: unknown; error?: unknown }) => {
     mockResolvedValue = { data: result.data ?? null, error: result.error ?? null }
   }
 
@@ -88,6 +138,8 @@ vi.mock('@/lib/supabase/client', () => ({
 // Reset mock before each test
 beforeEach(() => {
   mockClient = createMockSupabaseClient()
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://supabase.example.com'
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key'
 })
 
 export function getMockClient() {

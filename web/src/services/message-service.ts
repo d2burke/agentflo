@@ -55,6 +55,34 @@ async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<s
   return session.access_token
 }
 
+async function triggerMessageNotification(messageId: string, accessToken: string): Promise<void> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ messageId }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Message notification trigger failed', errorText)
+    }
+  } catch (error) {
+    console.error('Failed to trigger message notification', error)
+  }
+}
+
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -120,7 +148,7 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    await getAccessTokenForMessageSend(supabase)
+    const accessToken = await getAccessTokenForMessageSend(supabase)
 
     const insertPayload: Record<string, unknown> = {
       sender_id: params.senderId,
@@ -172,7 +200,9 @@ export const messageService = {
       throw new Error('Message insert returned no payload')
     }
 
-    return normalizeMessage(data as Message)
+    const message = normalizeMessage(data as Message)
+    await triggerMessageNotification(message.id, accessToken)
+    return message
   },
 
   async getOrCreateConversation(_userId: string, otherUserId: string, taskId?: string): Promise<Conversation> {

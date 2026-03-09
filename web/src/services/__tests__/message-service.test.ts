@@ -73,6 +73,10 @@ describe('messageService', () => {
           body: 'Hello!',
         },
       })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ jobs: [{ push_sent: true }] }),
+      } as unknown as Response)
 
       await messageService.sendMessage({
         senderId: 'user-1',
@@ -92,6 +96,18 @@ describe('messageService', () => {
         message_type: 'text',
         metadata: {},
       })
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://supabase.example.com/functions/v1/process-message-notifications',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer access-token',
+            apikey: 'anon-key',
+          },
+          body: JSON.stringify({ messageId: 'msg-1' }),
+        },
+      )
     })
 
     it('surfaces message insert errors', async () => {
@@ -150,6 +166,10 @@ describe('messageService', () => {
           body: 'Hello?',
         },
       })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ jobs: [{ push_sent: true }] }),
+      } as unknown as Response)
 
       await messageService.sendMessage({
         senderId: 'user-1',
@@ -160,6 +180,14 @@ describe('messageService', () => {
 
       expect(mock.auth.refreshSession).toHaveBeenCalled()
       expect(mock.insert).toHaveBeenCalled()
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://supabase.example.com/functions/v1/process-message-notifications',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer fresh-token',
+          }),
+        }),
+      )
     })
 
     it('fails with a session expired message when no authenticated user is present', async () => {
@@ -204,6 +232,35 @@ describe('messageService', () => {
       })
 
       expect(message.id).toBe('msg-existing')
+    })
+
+    it('does not fail the send when notification dispatch fails', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+      mock.auth.getSession.mockResolvedValue({
+        data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
+        error: null,
+      })
+      mock.__setMockResult({
+        data: {
+          id: 'msg-3',
+          conversation_id: 'conv-1',
+          task_id: null,
+          sender_id: 'user-1',
+          body: 'Hello!',
+        },
+      })
+      global.fetch = vi.fn().mockRejectedValue(new Error('network error'))
+
+      const message = await messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello!',
+        conversationId: 'conv-1',
+        clientMessageId: '33333333-3333-4333-8333-333333333333',
+      })
+
+      expect(message.id).toBe('msg-3')
+      consoleSpy.mockRestore()
     })
   })
 
