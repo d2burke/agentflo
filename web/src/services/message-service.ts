@@ -120,47 +120,59 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    const accessToken = await getAccessTokenForMessageSend(supabase)
-    const payload = {
+    await getAccessTokenForMessageSend(supabase)
+
+    const insertPayload: Record<string, unknown> = {
+      sender_id: params.senderId,
       body: params.body,
-      conversationId: params.conversationId ?? undefined,
-      taskId: params.taskId ?? undefined,
-      clientMessageId: params.clientMessageId ?? undefined,
-      messageType: params.messageType ?? 'text',
+      conversation_id: params.conversationId ?? null,
+      task_id: params.taskId ?? null,
+      client_message_id: params.clientMessageId ?? null,
+      message_type: params.messageType ?? 'text',
       metadata: params.metadata ?? {},
     }
 
-    const response = await fetch('/api/messages/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify(payload),
-    })
+    const { data, error } = await supabase
+      .from('messages')
+      .insert(insertPayload)
+      .select('*')
+      .single()
 
-    let data: { message?: Message; error?: string } | null = null
+    if (error && error.code === '23505' && params.clientMessageId) {
+      const { data: existing, error: existingError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', params.conversationId ?? null)
+        .eq('sender_id', params.senderId)
+        .eq('client_message_id', params.clientMessageId)
+        .limit(1)
 
-    try {
-      data = await response.json() as { message?: Message; error?: string }
-    } catch {
-      data = null
+      if (existingError) {
+        throw new Error(existingError.message)
+      }
+
+      const existingMessage = existing?.[0]
+      if (existingMessage) {
+        return normalizeMessage(existingMessage as Message)
+      }
     }
 
-    if (!response.ok) {
-      const errorMessage = data?.error ?? `Failed to send message (${response.status})`
-      if (response.status === 401 || errorMessage.trim().toLowerCase() === 'unauthorized') {
+    if (error) {
+      if (
+        error.message?.toLowerCase().includes('jwt') ||
+        error.message?.trim().toLowerCase() === 'unauthorized'
+      ) {
         throw new Error(SESSION_EXPIRED_MESSAGE)
       }
-      throw new Error(errorMessage)
+
+      throw new Error(error.message)
     }
 
-    if (!data?.message) {
-      throw new Error('send-message returned no message payload')
+    if (!data) {
+      throw new Error('Message insert returned no payload')
     }
 
-    return normalizeMessage(data.message)
+    return normalizeMessage(data as Message)
   },
 
   async getOrCreateConversation(_userId: string, otherUserId: string, taskId?: string): Promise<Conversation> {
