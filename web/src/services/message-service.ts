@@ -28,11 +28,6 @@ type FunctionErrorWithContext = Error & {
   context?: Response
 }
 
-type SessionLike = {
-  access_token?: string
-  expires_at?: number | null
-} | null
-
 async function readFunctionErrorMessage(error: unknown, fallbackMessage: string): Promise<string> {
   const typedError = error as FunctionErrorWithContext | null
 
@@ -80,24 +75,27 @@ async function isRetryableAuthError(error: unknown): Promise<boolean> {
     || normalized === 'unauthorized'
 }
 
-async function getFreshAccessToken(supabase: SupabaseClient) {
+async function ensureAuthenticatedClient(supabase: SupabaseClient) {
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
 
-  let activeSession = session as SessionLike
-  const expiresSoon = activeSession?.expires_at
-    ? activeSession.expires_at * 1000 <= Date.now() + 60_000
-    : !activeSession?.access_token
-
-  if (expiresSoon) {
-    const { data, error } = await supabase.auth.refreshSession()
-    if (!error && data.session?.access_token) {
-      activeSession = data.session
-    }
+  if (!userError && user) {
+    return true
   }
 
-  return activeSession?.access_token ?? null
+  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+  if (refreshError || !refreshData.session) {
+    return false
+  }
+
+  const {
+    data: { user: refreshedUser },
+    error: refreshedUserError,
+  } = await supabase.auth.getUser()
+
+  return !refreshedUserError && !!refreshedUser
 }
 
 export const messageService = {
@@ -174,35 +172,28 @@ export const messageService = {
       metadata: params.metadata ?? {},
     }
 
-    let accessToken = await getFreshAccessToken(supabase)
-    if (!accessToken) {
-      await supabase.auth.signOut()
+    const isAuthenticated = await ensureAuthenticatedClient(supabase)
+    if (!isAuthenticated) {
       throw new Error(SESSION_EXPIRED_MESSAGE)
     }
 
     let { data, error } = await supabase.functions.invoke('send-message', {
       body: payload,
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
     })
 
     if (error && await isRetryableAuthError(error)) {
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-      if (!refreshError) {
-        accessToken = refreshData.session?.access_token ?? accessToken
-        if (accessToken) {
-          const retryResult = await supabase.functions.invoke('send-message', {
-            body: payload,
-            headers: { Authorization: `Bearer ${accessToken}` },
-          })
-          data = retryResult.data
-          error = retryResult.error
-        }
+      const reauthenticated = await ensureAuthenticatedClient(supabase)
+      if (reauthenticated) {
+        const retryResult = await supabase.functions.invoke('send-message', {
+          body: payload,
+        })
+        data = retryResult.data
+        error = retryResult.error
       }
     }
 
     if (error) {
       if (await isRetryableAuthError(error)) {
-        await supabase.auth.signOut()
         throw new Error(SESSION_EXPIRED_MESSAGE)
       }
       throw new Error(await readFunctionErrorMessage(error, 'Failed to send message'))

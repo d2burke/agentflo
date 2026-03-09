@@ -52,12 +52,9 @@ describe('messageService', () => {
 
   describe('sendMessage', () => {
     it('invokes the edge function with canonical payload fields', async () => {
-      mock.auth.getSession.mockResolvedValue({
+      mock.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            access_token: 'token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
+          user: { id: 'user-1' },
         },
         error: null,
       })
@@ -90,22 +87,13 @@ describe('messageService', () => {
           messageType: 'text',
           metadata: {},
         },
-        headers: {
-          Authorization: 'Bearer token',
-        },
       })
     })
 
     it('retries once after refreshing the session on a 401 function error', async () => {
-      mock.auth.getSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'stale-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
-        },
-        error: null,
-      })
+      mock.auth.getUser
+        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
+        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.refreshSession.mockResolvedValue({
         data: {
           session: {
@@ -146,7 +134,8 @@ describe('messageService', () => {
         clientMessageId: '11111111-1111-4111-8111-111111111111',
       })
 
-      expect(mock.auth.refreshSession).toHaveBeenCalledOnce()
+      expect(mock.auth.getUser).toHaveBeenCalledTimes(2)
+      expect(mock.auth.refreshSession).not.toHaveBeenCalled()
       expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
       expect(mock.functions.invoke).toHaveBeenNthCalledWith(1, 'send-message', {
         body: {
@@ -156,9 +145,6 @@ describe('messageService', () => {
           clientMessageId: '11111111-1111-4111-8111-111111111111',
           messageType: 'text',
           metadata: {},
-        },
-        headers: {
-          Authorization: 'Bearer stale-token',
         },
       })
       expect(mock.functions.invoke).toHaveBeenNthCalledWith(2, 'send-message', {
@@ -170,23 +156,14 @@ describe('messageService', () => {
           messageType: 'text',
           metadata: {},
         },
-        headers: {
-          Authorization: 'Bearer fresh-token',
-        },
       })
       expect(message.id).toBe('msg-1')
     })
 
     it('retries once after refreshing the session on an Invalid JWT response', async () => {
-      mock.auth.getSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'stale-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
-        },
-        error: null,
-      })
+      mock.auth.getUser
+        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
+        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.refreshSession.mockResolvedValue({
         data: {
           session: {
@@ -227,18 +204,16 @@ describe('messageService', () => {
         clientMessageId: '22222222-2222-4222-8222-222222222222',
       })
 
-      expect(mock.auth.refreshSession).toHaveBeenCalledOnce()
+      expect(mock.auth.getUser).toHaveBeenCalledTimes(2)
+      expect(mock.auth.refreshSession).not.toHaveBeenCalled()
       expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
       expect(message.id).toBe('msg-2')
     })
 
     it('surfaces the edge function error body message', async () => {
-      mock.auth.getSession.mockResolvedValue({
+      mock.auth.getUser.mockResolvedValue({
         data: {
-          session: {
-            access_token: 'token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
+          user: { id: 'user-1' },
         },
         error: null,
       })
@@ -262,9 +237,10 @@ describe('messageService', () => {
     })
 
     it('fails with a session expired message when no access token is available', async () => {
-      mock.auth.getSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
+      mock.auth.getUser.mockResolvedValue({ data: { user: null }, error: new Error('Invalid JWT') })
+      mock.auth.refreshSession.mockResolvedValue({
+        data: { session: null, user: null },
+        error: new Error('Refresh failed'),
       })
 
       await expect(messageService.sendMessage({
@@ -276,15 +252,9 @@ describe('messageService', () => {
     })
 
     it('fails with a session expired message when auth retry still fails', async () => {
-      mock.auth.getSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'stale-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
-        },
-        error: null,
-      })
+      mock.auth.getUser
+        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
+        .mockResolvedValueOnce({ data: { user: null }, error: new Error('Invalid JWT') })
       mock.auth.refreshSession.mockResolvedValue({
         data: { session: null, user: null },
         error: new Error('Refresh failed'),
