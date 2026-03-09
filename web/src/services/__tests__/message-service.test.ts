@@ -92,6 +92,7 @@ describe('messageService', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: 'Bearer access-token',
           },
           body: JSON.stringify({
             body: 'Hello!',
@@ -185,6 +186,7 @@ describe('messageService', () => {
         expect.objectContaining({
           headers: {
             'Content-Type': 'application/json',
+            Authorization: 'Bearer fresh-token',
           },
         }),
       )

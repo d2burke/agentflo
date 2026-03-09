@@ -25,7 +25,7 @@ function normalizeMessage(message: Message): Message {
   }
 }
 
-async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<void> {
+async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<string> {
   const {
     data: { user },
     error: userError,
@@ -35,7 +35,7 @@ async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<voi
     throw new Error(SESSION_EXPIRED_MESSAGE)
   }
 
-  const {
+  let {
     data: { session },
   } = await supabase.auth.getSession()
 
@@ -48,7 +48,10 @@ async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<voi
     if (error || !data.session?.access_token) {
       throw new Error(SESSION_EXPIRED_MESSAGE)
     }
+    session = data.session
   }
+
+  return session.access_token
 }
 
 export const messageService = {
@@ -116,7 +119,7 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    await ensureAuthenticatedSession(supabase)
+    const accessToken = await ensureAuthenticatedSession(supabase)
 
     const payload: Record<string, unknown> = {
       body: params.body,
@@ -133,6 +136,7 @@ export const messageService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(payload),
     })
