@@ -24,97 +24,6 @@ function normalizeMessage(message: Message): Message {
   }
 }
 
-type FunctionErrorWithContext = Error & {
-  context?: Response
-}
-
-async function readFunctionErrorMessage(error: unknown, fallbackMessage: string): Promise<string> {
-  const typedError = error as FunctionErrorWithContext | null
-
-  if (typedError?.context) {
-    const response = typedError.context
-
-    try {
-      const payload = await response.clone().json() as Record<string, unknown>
-      if (typeof payload.error === 'string' && payload.error) {
-        return payload.error
-      }
-      if (typeof payload.message === 'string' && payload.message) {
-        return payload.message
-      }
-    } catch {
-      try {
-        const text = await response.clone().text()
-        if (text) {
-          return text
-        }
-      } catch {
-        // Ignore parse failures and fall back to generic error handling.
-      }
-    }
-  }
-
-  if (typedError?.message && typedError.message !== 'Edge Function returned a non-2xx status code') {
-    return typedError.message
-  }
-
-  return fallbackMessage
-}
-
-async function isRetryableAuthError(error: unknown): Promise<boolean> {
-  const typedError = error as FunctionErrorWithContext | null
-  if (typedError?.context?.status === 401) {
-    return true
-  }
-
-  const message = await readFunctionErrorMessage(error, '')
-  const normalized = message.trim().toLowerCase()
-
-  return normalized === 'invalid jwt'
-    || normalized === 'jwt expired'
-    || normalized === 'unauthorized'
-}
-
-async function ensureAuthenticatedClient(supabase: SupabaseClient) {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (!userError && user) {
-    return true
-  }
-
-  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-  if (refreshError || !refreshData.session) {
-    return false
-  }
-
-  const {
-    data: { user: refreshedUser },
-    error: refreshedUserError,
-  } = await supabase.auth.getUser()
-
-  return !refreshedUserError && !!refreshedUser
-}
-
-async function getAccessTokenForFunctions(supabase: SupabaseClient) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  if (session?.access_token) {
-    return session.access_token
-  }
-
-  const { data, error } = await supabase.auth.refreshSession()
-  if (error || !data.session?.access_token) {
-    return null
-  }
-
-  return data.session.access_token
-}
-
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -189,52 +98,36 @@ export const messageService = {
       metadata: params.metadata ?? {},
     }
 
-    const isAuthenticated = await ensureAuthenticatedClient(supabase)
-    if (!isAuthenticated) {
-      throw new Error(SESSION_EXPIRED_MESSAGE)
-    }
-
-    const accessToken = await getAccessTokenForFunctions(supabase)
-    if (!accessToken) {
-      throw new Error(SESSION_EXPIRED_MESSAGE)
-    }
-
-    let { data, error } = await supabase.functions.invoke('send-message', {
-      body: payload,
+    const response = await fetch('/api/messages/send', {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
       },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
     })
 
-    if (error && await isRetryableAuthError(error)) {
-      const reauthenticated = await ensureAuthenticatedClient(supabase)
-      if (reauthenticated) {
-        const retriedAccessToken = await getAccessTokenForFunctions(supabase)
-        if (!retriedAccessToken) {
-          throw new Error(SESSION_EXPIRED_MESSAGE)
-        }
-        const retryResult = await supabase.functions.invoke('send-message', {
-          body: payload,
-          headers: {
-            Authorization: `Bearer ${retriedAccessToken}`,
-          },
-        })
-        data = retryResult.data
-        error = retryResult.error
-      }
+    let data: { message?: Message; error?: string } | null = null
+
+    try {
+      data = await response.json() as { message?: Message; error?: string }
+    } catch {
+      data = null
     }
 
-    if (error) {
-      if (await isRetryableAuthError(error)) {
+    if (!response.ok) {
+      const errorMessage = data?.error ?? `Failed to send message (${response.status})`
+      if (response.status === 401 || errorMessage.trim().toLowerCase() === 'unauthorized') {
         throw new Error(SESSION_EXPIRED_MESSAGE)
       }
-      throw new Error(await readFunctionErrorMessage(error, 'Failed to send message'))
+      throw new Error(errorMessage)
     }
+
     if (!data?.message) {
       throw new Error('send-message returned no message payload')
     }
 
-    return normalizeMessage(data.message as Message)
+    return normalizeMessage(data.message)
   },
 
   async getOrCreateConversation(_userId: string, otherUserId: string, taskId?: string): Promise<Conversation> {

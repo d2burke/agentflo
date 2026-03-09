@@ -1,12 +1,19 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getMockClient } from '@/__tests__/setup'
 import { messageService } from '@/services/message-service'
 
 describe('messageService', () => {
   let mock: ReturnType<typeof getMockClient>
+  let originalFetch: typeof global.fetch | undefined
 
   beforeEach(() => {
     mock = getMockClient()
+    originalFetch = global.fetch
+    global.fetch = vi.fn() as unknown as typeof global.fetch
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch as typeof global.fetch
   })
 
   describe('fetchConversations', () => {
@@ -52,22 +59,9 @@ describe('messageService', () => {
 
   describe('sendMessage', () => {
     it('invokes the edge function with canonical payload fields', async () => {
-      mock.auth.getUser.mockResolvedValue({
-        data: {
-          user: { id: 'user-1' },
-        },
-        error: null,
-      })
-      mock.auth.getSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'token',
-          },
-        },
-        error: null,
-      })
-      mock.__setMockResult({
-        data: {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
           message: {
             id: 'msg-1',
             conversation_id: 'conv-1',
@@ -75,7 +69,7 @@ describe('messageService', () => {
             sender_id: 'user-1',
             body: 'Hello!',
           },
-        },
+        }),
       })
 
       await messageService.sendMessage({
@@ -86,204 +80,58 @@ describe('messageService', () => {
         clientMessageId: 'client-1',
       })
 
-      expect(mock.functions.invoke).toHaveBeenCalledWith('send-message', {
-        body: {
+      expect(global.fetch).toHaveBeenCalledWith('/api/messages/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
           body: 'Hello!',
           conversationId: 'conv-1',
           taskId: 'task-1',
           clientMessageId: 'client-1',
           messageType: 'text',
           metadata: {},
-        },
-        headers: {
-          Authorization: 'Bearer token',
-        },
+        }),
       })
     })
 
-    it('retries once after refreshing the session on a 401 function error', async () => {
-      mock.auth.getUser
-        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
-        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
-      mock.auth.getSession
-        .mockResolvedValueOnce({
-          data: {
-            session: {
-              access_token: 'stale-token',
-            },
-          },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: {
-            session: {
-              access_token: 'fresh-token',
-            },
-          },
-          error: null,
-        })
-      mock.auth.refreshSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'fresh-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
-          user: null,
-        },
-        error: null,
-      })
-      mock.functions.invoke
-        .mockResolvedValueOnce({
-          data: null,
-          error: {
-            message: 'Edge Function returned a non-2xx status code',
-            context: new Response(
-              JSON.stringify({ error: 'Unauthorized' }),
-              { status: 401, headers: { 'Content-Type': 'application/json' } },
-            ),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            message: {
-              id: 'msg-1',
-              conversation_id: 'conv-1',
-              sender_id: 'user-1',
-              body: 'Hello again!',
-            },
-          },
-          error: null,
+    it('maps a 401 route response to a session-expired error', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: vi.fn().mockResolvedValue({ error: 'Unauthorized' }),
       })
 
-      const message = await messageService.sendMessage({
+      await expect(messageService.sendMessage({
         senderId: 'user-1',
         body: 'Hello again!',
         conversationId: 'conv-1',
         clientMessageId: '11111111-1111-4111-8111-111111111111',
-      })
-
-      expect(mock.auth.getUser).toHaveBeenCalledTimes(2)
-      expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
-      expect(mock.functions.invoke).toHaveBeenNthCalledWith(1, 'send-message', {
-        body: {
-          body: 'Hello again!',
-          conversationId: 'conv-1',
-          taskId: undefined,
-          clientMessageId: '11111111-1111-4111-8111-111111111111',
-          messageType: 'text',
-          metadata: {},
-        },
-        headers: {
-          Authorization: 'Bearer stale-token',
-        },
-      })
-      expect(mock.functions.invoke).toHaveBeenNthCalledWith(2, 'send-message', {
-        body: {
-          body: 'Hello again!',
-          conversationId: 'conv-1',
-          taskId: undefined,
-          clientMessageId: '11111111-1111-4111-8111-111111111111',
-          messageType: 'text',
-          metadata: {},
-        },
-        headers: {
-          Authorization: 'Bearer fresh-token',
-        },
-      })
-      expect(message.id).toBe('msg-1')
+      })).rejects.toThrow('Session expired. Please sign in again.')
     })
 
-    it('retries once after refreshing the session on an Invalid JWT response', async () => {
-      mock.auth.getUser
-        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
-        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
-      mock.auth.getSession
-        .mockResolvedValueOnce({
-          data: {
-            session: {
-              access_token: 'stale-token',
-            },
-          },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: {
-            session: {
-              access_token: 'fresh-token',
-            },
-          },
-          error: null,
-        })
-      mock.auth.refreshSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'fresh-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-          },
-          user: null,
-        },
-        error: null,
+    it('maps an invalid-jwt route response to a session-expired error', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: vi.fn().mockResolvedValue({ error: 'Invalid JWT' }),
       })
-      mock.functions.invoke
-        .mockResolvedValueOnce({
-          data: null,
-          error: {
-            message: 'Edge Function returned a non-2xx status code',
-            context: new Response(
-              JSON.stringify({ error: 'Invalid JWT' }),
-              { status: 500, headers: { 'Content-Type': 'application/json' } },
-            ),
-          },
-        })
-        .mockResolvedValueOnce({
-          data: {
-            message: {
-              id: 'msg-2',
-              conversation_id: 'conv-1',
-              sender_id: 'user-1',
-              body: 'Retried',
-            },
-          },
-          error: null,
-        })
 
-      const message = await messageService.sendMessage({
+      await expect(messageService.sendMessage({
         senderId: 'user-1',
         body: 'Retried',
         conversationId: 'conv-1',
         clientMessageId: '22222222-2222-4222-8222-222222222222',
-      })
-
-      expect(mock.auth.getUser).toHaveBeenCalledTimes(2)
-      expect(mock.auth.refreshSession).not.toHaveBeenCalled()
-      expect(mock.functions.invoke).toHaveBeenCalledTimes(2)
-      expect(message.id).toBe('msg-2')
+      })).rejects.toThrow('Session expired. Please sign in again.')
     })
 
     it('surfaces the edge function error body message', async () => {
-      mock.auth.getUser.mockResolvedValue({
-        data: {
-          user: { id: 'user-1' },
-        },
-        error: null,
-      })
-      mock.auth.getSession.mockResolvedValue({
-        data: {
-          session: {
-            access_token: 'token',
-          },
-        },
-        error: null,
-      })
-      mock.functions.invoke.mockResolvedValueOnce({
-        data: null,
-        error: {
-          message: 'Edge Function returned a non-2xx status code',
-          context: new Response(
-            JSON.stringify({ error: 'Conversation not found' }),
-            { status: 404, headers: { 'Content-Type': 'application/json' } },
-          ),
-        },
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: vi.fn().mockResolvedValue({ error: 'Conversation not found' }),
       })
 
       await expect(messageService.sendMessage({
@@ -295,14 +143,10 @@ describe('messageService', () => {
     })
 
     it('fails with a session expired message when no access token is available', async () => {
-      mock.auth.getUser.mockResolvedValue({ data: { user: null }, error: new Error('Invalid JWT') })
-      mock.auth.refreshSession.mockResolvedValue({
-        data: { session: null, user: null },
-        error: new Error('Refresh failed'),
-      })
-      mock.auth.getSession.mockResolvedValue({
-        data: { session: null },
-        error: null,
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: vi.fn().mockResolvedValue({ error: 'Unauthorized' }),
       })
 
       await expect(messageService.sendMessage({
@@ -314,31 +158,10 @@ describe('messageService', () => {
     })
 
     it('fails with a session expired message when auth retry still fails', async () => {
-      mock.auth.getUser
-        .mockResolvedValueOnce({ data: { user: { id: 'user-1' } }, error: null })
-        .mockResolvedValueOnce({ data: { user: null }, error: new Error('Invalid JWT') })
-      mock.auth.getSession
-        .mockResolvedValueOnce({
-          data: {
-            session: {
-              access_token: 'stale-token',
-            },
-          },
-          error: null,
-        })
-      mock.auth.refreshSession.mockResolvedValue({
-        data: { session: null, user: null },
-        error: new Error('Refresh failed'),
-      })
-      mock.functions.invoke.mockResolvedValueOnce({
-        data: null,
-        error: {
-          message: 'Edge Function returned a non-2xx status code',
-          context: new Response(
-            JSON.stringify({ error: 'Invalid JWT' }),
-            { status: 401, headers: { 'Content-Type': 'application/json' } },
-          ),
-        },
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: vi.fn().mockResolvedValue({ error: 'Invalid JWT' }),
       })
 
       await expect(messageService.sendMessage({
