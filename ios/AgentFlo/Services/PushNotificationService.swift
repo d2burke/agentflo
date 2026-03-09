@@ -111,6 +111,14 @@ final class PushNotificationService {
             return
         }
 
+        guard Messaging.messaging().apnsToken != nil else {
+            print("[PushNotificationService] Waiting for APNS token before fetching FCM token")
+            await MainActor.run {
+                UIApplication.shared.registerForRemoteNotifications()
+            }
+            return
+        }
+
         do {
             let fcmToken = try await Messaging.messaging().token()
             try await registerTokenWithBackend(fcmToken)

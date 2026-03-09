@@ -45,7 +45,7 @@ struct AgentFloApp: App {
                 .onChange(of: appState.authService.currentUser?.id) { oldId, newId in
                     // User changed (login or logout) — re-register push token for new user
                     if let _ = newId, newId != oldId, appState.pushService.isEnabled {
-                        Task { await appState.pushService.fetchAndRegisterFCMToken() }
+                        UIApplication.shared.registerForRemoteNotifications()
                     }
                 }
                 .onChange(of: scenePhase) { _, newPhase in

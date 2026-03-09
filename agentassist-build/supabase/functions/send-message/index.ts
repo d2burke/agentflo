@@ -326,21 +326,19 @@ serve(async (req) => {
 
     if (recipientId && recipientId !== senderId && typeof message.id === 'string') {
       try {
-        const processResponse = await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: serviceRoleKey,
+        const { data: processBody, error: processError } = await serviceClient.functions.invoke(
+          'process-message-notifications',
+          {
+            body: { messageId: message.id },
+            headers: {
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
           },
-          body: JSON.stringify({ messageId: message.id }),
-        })
+        )
 
-        if (!processResponse.ok) {
-          const processBody = await processResponse.text()
-          console.error('[send-message] Failed to process notification job:', processBody)
+        if (processError) {
+          console.error('[send-message] Failed to process notification job:', processError)
         } else {
-          const processBody = await processResponse.json()
           notificationSent = Boolean(processBody?.jobs?.[0]?.push_sent)
         }
       } catch (notifErr) {
