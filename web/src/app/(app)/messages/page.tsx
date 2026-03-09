@@ -22,6 +22,7 @@ import type { ConversationPreview, Message } from '@/types/models'
 const NO_ACTIVE_CONVERSATION = '__none__'
 
 type MessagePages = InfiniteData<Message[], string | null>
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function compareMessages(left: Message, right: Message) {
   const leftCreatedAt = left.created_at ?? ''
@@ -36,6 +37,10 @@ function compareMessages(left: Message, right: Message) {
 
 function sortMessagesAscending(messages: Message[]) {
   return [...messages].sort(compareMessages)
+}
+
+function isUuid(value: string | null | undefined) {
+  return Boolean(value && UUID_PATTERN.test(value))
 }
 
 function mergeMessages(messages: Message[]) {
@@ -329,6 +334,16 @@ function MessageThread({
   )
 
   const lastMessageId = messages[messages.length - 1]?.id
+  const lastPersistedMessageId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const candidateId = messages[index]?.id
+      if (isUuid(candidateId)) {
+        return candidateId
+      }
+    }
+
+    return undefined
+  }, [messages])
 
   useEffect(() => {
     const channel = messageService.subscribeToMessages(conversationId, (message) => {
@@ -366,7 +381,7 @@ function MessageThread({
   useEffect(() => {
     if (!lastMessageId) return
 
-    void messageService.markConversationRead(conversationId, lastMessageId)
+    void messageService.markConversationRead(conversationId, lastPersistedMessageId)
       .then(() => {
         queryClient.setQueryData<ConversationPreview[]>(['conversations', userId], (current) => patchConversationList(current, conversationId, {
           unread_count: 0,
@@ -375,7 +390,7 @@ function MessageThread({
       .catch(() => {
         // Read state drift is non-fatal for the thread UI.
       })
-  }, [conversationId, lastMessageId, queryClient, userId])
+  }, [conversationId, lastMessageId, lastPersistedMessageId, queryClient, userId])
 
   async function deliverMessage(message: Message) {
     setOptimisticMessages((current) => mergeMessages([
