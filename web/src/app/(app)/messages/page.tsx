@@ -172,6 +172,18 @@ function MessagesContent() {
 
   const hasAnyConversationContext = conversations.length > 0 || !!conversationIdParam || !!taskId
 
+  useEffect(() => {
+    if (!user) return
+
+    const channel = messageService.subscribeToConversationActivity(user.id, () => {
+      void conversationsQuery.refetch()
+    })
+
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [conversationsQuery, user])
+
   if (!user) {
     return null
   }
@@ -381,11 +393,13 @@ function MessageThread({
   useEffect(() => {
     if (!lastMessageId) return
 
+    queryClient.setQueryData<ConversationPreview[]>(['conversations', userId], (current) => patchConversationList(current, conversationId, {
+      unread_count: 0,
+    }))
+
     void messageService.markConversationRead(conversationId, lastPersistedMessageId)
       .then(() => {
-        queryClient.setQueryData<ConversationPreview[]>(['conversations', userId], (current) => patchConversationList(current, conversationId, {
-          unread_count: 0,
-        }))
+        void queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
       })
       .catch(() => {
         // Read state drift is non-fatal for the thread UI.

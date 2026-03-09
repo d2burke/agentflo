@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAppStore } from '@/stores/app-store'
 import { notificationService } from '@/services/notification-service'
@@ -36,6 +37,18 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read_at).length
 
+  useEffect(() => {
+    if (!user) return
+
+    const channel = notificationService.subscribeToNotifications(user.id, () => {
+      void qc.invalidateQueries({ queryKey: ['notifications', user.id] })
+    })
+
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [qc, user])
+
   async function handleMarkAllRead() {
     if (!user) return
     await notificationService.markAllAsRead(user.id)
@@ -48,6 +61,11 @@ export default function NotificationsPage() {
       qc.invalidateQueries({ queryKey: ['notifications'] })
     }
     // Navigate based on notification data
+    if (notification.type === 'new_message' && notification.data?.conversation_id) {
+      router.push(`/messages?conversationId=${notification.data.conversation_id}`)
+      return
+    }
+
     if (notification.data?.task_id) {
       router.push(`/tasks/${notification.data.task_id}`)
     }

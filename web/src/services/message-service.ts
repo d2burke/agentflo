@@ -56,20 +56,12 @@ async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<s
 }
 
 async function triggerMessageNotification(messageId: string, accessToken: string): Promise<void> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return
-  }
-
   try {
-    const response = await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
+    const response = await fetch('/api/messages/notify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`,
-        apikey: supabaseAnonKey,
       },
       body: JSON.stringify({ messageId }),
     })
@@ -231,6 +223,23 @@ export const messageService = {
 
     if (error) throw error
     return unwrapSingleRecord(data as Conversation | Conversation[] | null, 'Task conversation not found')
+  },
+
+  subscribeToConversationActivity(userId: string, callback: () => void) {
+    const supabase = createClient()
+    return supabase
+      .channel(`conversation-activity:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => callback(),
+      )
+      .subscribe()
   },
 
   subscribeToMessages(conversationId: string, callback: (message: Message) => void) {

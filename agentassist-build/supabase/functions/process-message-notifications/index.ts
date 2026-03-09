@@ -11,6 +11,7 @@ type NotificationJobRow = {
   recipient_id: string
   status: 'pending' | 'processing' | 'sent' | 'skipped' | 'failed'
   attempts: number
+  notification_id?: string | null
 }
 
 type MessageRow = {
@@ -19,6 +20,74 @@ type MessageRow = {
   task_id: string | null
   message_type: 'text' | 'image' | 'file' | 'system'
   deleted_at: string | null
+}
+
+type NotificationRow = {
+  id: string
+  title: string
+  body: string
+  data: Record<string, string> | null
+}
+
+type PushTokenRow = {
+  token: string
+  platform: 'ios' | 'android' | 'web'
+}
+
+async function getFcmAccessToken(serviceAccount: {
+  client_email: string
+  private_key: string
+  token_uri: string
+}): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const payload = btoa(
+    JSON.stringify({
+      iss: serviceAccount.client_email,
+      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+      aud: serviceAccount.token_uri,
+      iat: now,
+      exp: now + 3600,
+    }),
+  )
+
+  const encoder = new TextEncoder()
+  const signingInput = `${header}.${payload}`
+  const pemContents = serviceAccount.private_key
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\n/g, '')
+  const binaryKey = Uint8Array.from(atob(pemContents), (char) => char.charCodeAt(0))
+
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    binaryKey,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    encoder.encode(signingInput),
+  )
+
+  const signed = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+
+  const jwt = `${header}.${payload}.${signed}`
+
+  const tokenResponse = await fetch(serviceAccount.token_uri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  })
+
+  const tokenData = await tokenResponse.json()
+  return tokenData.access_token
 }
 
 function buildPreview(message: MessageRow) {
@@ -91,7 +160,7 @@ serve(async (req) => {
     if (messageId) {
       const { data: job, error: jobError } = await serviceClient
         .from('message_notification_jobs')
-        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts')
+        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts, notification_id')
         .eq('message_id', messageId)
         .maybeSingle()
 
@@ -108,7 +177,7 @@ serve(async (req) => {
       const limit = Math.max(1, Math.min(Number(input.limit ?? 20), 100))
       const { data: pendingJobs, error: pendingError } = await serviceClient
         .from('message_notification_jobs')
-        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts')
+        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts, notification_id')
         .in('status', ['pending', 'failed'])
         .order('created_at', { ascending: true })
         .limit(limit)
@@ -148,7 +217,7 @@ serve(async (req) => {
         })
         .eq('id', job.id)
         .in('status', ['pending', 'failed', 'processing'])
-        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts')
+        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts, notification_id')
         .maybeSingle()
 
       if (claimError || !claimedJob) {
@@ -207,78 +276,192 @@ serve(async (req) => {
         continue
       }
 
-      const { data: senderProfile } = await serviceClient
-        .from('users')
-        .select('full_name')
-        .eq('id', typedJob.sender_id)
-        .maybeSingle()
-
-      const notifyPayload: Record<string, string> = {
-        sender_name: senderProfile?.full_name ?? 'Someone',
-        message_preview: buildPreview(typedMessage),
-        conversation_id: typedJob.conversation_id,
-        screen: 'messages',
-      }
-
-      if (typedMessage.task_id) {
-        notifyPayload.task_id = typedMessage.task_id
-      }
-
       try {
-        const notifyResponse = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${serviceRoleKey}`,
-            apikey: serviceRoleKey,
-          },
-          body: JSON.stringify({
-            userId: typedJob.recipient_id,
-            type: 'new_message',
-            data: notifyPayload,
-          }),
-        })
+        let notificationId = typedJob.notification_id ?? null
 
-        const notifyText = await notifyResponse.text()
-        const notifyBody = notifyText ? JSON.parse(notifyText) : {}
+        if (!notificationId) {
+          const { data: senderProfile } = await serviceClient
+            .from('users')
+            .select('full_name')
+            .eq('id', typedJob.sender_id)
+            .maybeSingle()
 
-        if (!notifyResponse.ok) {
+          const preview = buildPreview(typedMessage)
+          const { data: notification, error: notificationError } = await serviceClient
+            .from('notifications')
+            .insert({
+              user_id: typedJob.recipient_id,
+              type: 'new_message',
+              title: senderProfile?.full_name ?? 'Someone',
+              body: preview,
+              data: {
+                sender_name: senderProfile?.full_name ?? 'Someone',
+                message_preview: preview,
+                conversation_id: typedJob.conversation_id,
+                task_id: typedMessage.task_id,
+                screen: 'messages',
+              },
+            })
+            .select('id')
+            .single()
+
+          if (notificationError || !notification) {
+            throw new Error(notificationError?.message ?? 'Failed to create message notification')
+          }
+
+          notificationId = notification.id
+          await serviceClient
+            .from('message_notification_jobs')
+            .update({ notification_id: notificationId })
+            .eq('id', typedJob.id)
+        }
+
+        const { data: notification, error: notificationLookupError } = await serviceClient
+          .from('notifications')
+          .select('id, title, body, data')
+          .eq('id', notificationId)
+          .maybeSingle()
+
+        if (notificationLookupError || !notification) {
+          throw new Error(notificationLookupError?.message ?? 'Notification record not found')
+        }
+
+        const typedNotification = notification as NotificationRow
+        const { data: tokens, error: tokenError } = await serviceClient
+          .from('push_tokens')
+          .select('token, platform')
+          .eq('user_id', typedJob.recipient_id)
+          .eq('is_active', true)
+
+        if (tokenError) {
+          throw new Error(tokenError.message)
+        }
+
+        const typedTokens = (tokens ?? []) as PushTokenRow[]
+        if (typedTokens.length === 0) {
           await serviceClient
             .from('message_notification_jobs')
             .update({
-              status: 'failed',
-              last_error: notifyBody.error ?? `Notification dispatch failed (${notifyResponse.status})`,
+              status: 'sent',
+              notification_id: notificationId,
+              push_sent: false,
+              processed_at: new Date().toISOString(),
+              last_error: null,
               locked_at: null,
             })
             .eq('id', typedJob.id)
 
           results.push({
             message_id: typedJob.message_id,
-            status: 'failed',
-            error: notifyBody.error ?? `Notification dispatch failed (${notifyResponse.status})`,
+            status: 'sent',
+            push_sent: false,
+            notification_id: notificationId,
           })
           continue
         }
 
-        const nextStatus = notifyBody.skipped ? 'skipped' : 'sent'
+        const fcmServiceAccount = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON')
+        if (!fcmServiceAccount) {
+          await serviceClient
+            .from('message_notification_jobs')
+            .update({
+              status: 'sent',
+              notification_id: notificationId,
+              push_sent: false,
+              processed_at: new Date().toISOString(),
+              last_error: null,
+              locked_at: null,
+            })
+            .eq('id', typedJob.id)
+
+          results.push({
+            message_id: typedJob.message_id,
+            status: 'sent',
+            push_sent: false,
+            notification_id: notificationId,
+          })
+          continue
+        }
+
+        const serviceAccount = JSON.parse(fcmServiceAccount)
+        const accessToken = await getFcmAccessToken(serviceAccount)
+        const projectId = serviceAccount.project_id
+        let pushSent = false
+
+        for (const tokenRow of typedTokens) {
+          const messagePayload: Record<string, unknown> = {
+            token: tokenRow.token,
+            notification: {
+              title: typedNotification.title,
+              body: typedNotification.body,
+            },
+            data: {
+              type: 'new_message',
+              ...((typedNotification.data ?? {}) as Record<string, string>),
+            },
+          }
+
+          if (tokenRow.platform === 'ios') {
+            messagePayload.apns = {
+              payload: { aps: { sound: 'default', badge: 1 } },
+            }
+          } else if (tokenRow.platform === 'web') {
+            messagePayload.webpush = {
+              notification: { icon: '/icon-192.png' },
+            }
+          }
+
+          const pushResponse = await fetch(
+            `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ message: messagePayload }),
+            },
+          )
+
+          if (pushResponse.ok) {
+            pushSent = true
+            continue
+          }
+
+          const errorBody = await pushResponse.json().catch(() => ({}))
+          const errorCode = errorBody?.error?.details?.[0]?.errorCode
+          if (errorCode === 'UNREGISTERED' || pushResponse.status === 404) {
+            await serviceClient
+              .from('push_tokens')
+              .update({ is_active: false })
+              .eq('token', tokenRow.token)
+          }
+        }
 
         await serviceClient
           .from('message_notification_jobs')
           .update({
-            status: nextStatus,
-            notification_id: notifyBody.notification_id ?? null,
-            push_sent: Boolean(notifyBody.push_sent),
+            status: 'sent',
+            notification_id: notificationId,
+            push_sent: pushSent,
             processed_at: new Date().toISOString(),
-            last_error: notifyBody.skipped ?? null,
+            last_error: null,
             locked_at: null,
           })
           .eq('id', typedJob.id)
 
+        if (pushSent) {
+          await serviceClient
+            .from('notifications')
+            .update({ push_sent_at: new Date().toISOString() })
+            .eq('id', notificationId)
+        }
+
         results.push({
           message_id: typedJob.message_id,
-          status: nextStatus,
-          push_sent: Boolean(notifyBody.push_sent),
-          notification_id: notifyBody.notification_id ?? null,
+          status: 'sent',
+          push_sent: pushSent,
+          notification_id: notificationId,
         })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to dispatch notification'

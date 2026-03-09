@@ -97,13 +97,12 @@ describe('messageService', () => {
         metadata: {},
       })
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://supabase.example.com/functions/v1/process-message-notifications',
+        '/api/messages/notify',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer access-token',
-            apikey: 'anon-key',
           },
           body: JSON.stringify({ messageId: 'msg-1' }),
         },
@@ -181,7 +180,7 @@ describe('messageService', () => {
       expect(mock.auth.refreshSession).toHaveBeenCalled()
       expect(mock.insert).toHaveBeenCalled()
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://supabase.example.com/functions/v1/process-message-notifications',
+        '/api/messages/notify',
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer fresh-token',

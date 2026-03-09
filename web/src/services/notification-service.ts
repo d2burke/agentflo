@@ -35,4 +35,21 @@ export const notificationService = {
 
     if (error) throw error
   },
+
+  subscribeToNotifications(userId: string, callback: () => void) {
+    const supabase = createClient()
+    return supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => callback(),
+      )
+      .subscribe()
+  },
 }
