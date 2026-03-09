@@ -4,6 +4,7 @@ import type { RealtimePostgresInsertPayload, SupabaseClient } from '@supabase/su
 
 export const MESSAGE_PAGE_SIZE = 50
 export const SESSION_EXPIRED_MESSAGE = 'Session expired. Please sign in again.'
+const SESSION_REFRESH_WINDOW_MS = 60_000
 
 function unwrapSingleRecord<T>(data: T | T[] | null, errorMessage: string): T {
   if (Array.isArray(data)) {
@@ -22,6 +23,36 @@ function normalizeMessage(message: Message): Message {
     metadata: message.metadata ?? {},
     delivery_status: message.delivery_status ?? 'sent',
   }
+}
+
+async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<string> {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error(SESSION_EXPIRED_MESSAGE)
+  }
+
+  let {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const expiresSoon = session?.expires_at
+    ? (session.expires_at * 1000) <= (Date.now() + SESSION_REFRESH_WINDOW_MS)
+    : false
+
+  if (!session?.access_token || expiresSoon) {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data.session?.access_token) {
+      throw new Error(SESSION_EXPIRED_MESSAGE)
+    }
+
+    session = data.session
+  }
+
+  return session.access_token
 }
 
 export const messageService = {
@@ -89,6 +120,7 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
+    const accessToken = await getAccessTokenForMessageSend(supabase)
     const payload = {
       body: params.body,
       conversationId: params.conversationId ?? undefined,
@@ -102,6 +134,7 @@ export const messageService = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
       },
       credentials: 'same-origin',
       body: JSON.stringify(payload),
