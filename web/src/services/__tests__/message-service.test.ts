@@ -102,9 +102,8 @@ describe('messageService', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Bearer access-token',
           },
-          body: JSON.stringify({ messageId: 'msg-1' }),
+          body: JSON.stringify({}),
         },
       )
     })
@@ -182,9 +181,10 @@ describe('messageService', () => {
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/messages/notify',
         expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: 'Bearer fresh-token',
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
         }),
       )
     })

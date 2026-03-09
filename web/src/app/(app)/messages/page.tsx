@@ -139,6 +139,9 @@ function MessagesContent() {
     queryKey: ['conversations', user?.id],
     queryFn: () => messageService.fetchConversations(user!.id),
     enabled: !!user,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   const taskConversationQuery = useQuery({
@@ -333,6 +336,9 @@ function MessageThread({
         ? (lastPage[0]?.id ?? null)
         : null
     ),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   const serverMessages = useMemo(

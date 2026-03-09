@@ -150,12 +150,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid messageId' }), { status: 400, headers })
     }
 
-    if (!messageId && !isInternalCall) {
+    if (!messageId && !isInternalCall && !actorUserId) {
       return new Response(JSON.stringify({ error: 'messageId is required' }), { status: 400, headers })
     }
 
     const serviceClient = createClient(supabaseUrl, serviceRoleKey)
-    const jobs: NotificationJobRow[] = []
+    const jobsById = new Map<string, NotificationJobRow>()
 
     if (messageId) {
       const { data: job, error: jobError } = await serviceClient
@@ -168,25 +168,37 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: jobError.message }), { status: 500, headers })
       }
 
-      if (!job) {
-        return new Response(JSON.stringify({ jobs: [] }), { status: 200, headers })
+      if (job) {
+        jobsById.set((job as NotificationJobRow).id, job as NotificationJobRow)
       }
+    }
 
-      jobs.push(job as NotificationJobRow)
-    } else {
-      const limit = Math.max(1, Math.min(Number(input.limit ?? 20), 100))
-      const { data: pendingJobs, error: pendingError } = await serviceClient
-        .from('message_notification_jobs')
-        .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts, notification_id')
-        .in('status', ['pending', 'failed'])
-        .order('created_at', { ascending: true })
-        .limit(limit)
+    const limit = Math.max(1, Math.min(Number(input.limit ?? 20), 100))
+    let pendingJobsQuery = serviceClient
+      .from('message_notification_jobs')
+      .select('id, message_id, conversation_id, sender_id, recipient_id, status, attempts, notification_id')
+      .in('status', ['pending', 'failed'])
+      .order('created_at', { ascending: true })
+      .limit(limit)
 
-      if (pendingError) {
-        return new Response(JSON.stringify({ error: pendingError.message }), { status: 500, headers })
-      }
+    if (!isInternalCall && actorUserId) {
+      pendingJobsQuery = pendingJobsQuery.eq('sender_id', actorUserId)
+    }
 
-      jobs.push(...((pendingJobs ?? []) as NotificationJobRow[]))
+    const { data: pendingJobs, error: pendingError } = await pendingJobsQuery
+
+    if (pendingError) {
+      return new Response(JSON.stringify({ error: pendingError.message }), { status: 500, headers })
+    }
+
+    for (const pendingJob of (pendingJobs ?? []) as NotificationJobRow[]) {
+      jobsById.set(pendingJob.id, pendingJob)
+    }
+
+    const jobs = Array.from(jobsById.values())
+
+    if (jobs.length === 0) {
+      return new Response(JSON.stringify({ jobs: [] }), { status: 200, headers })
     }
 
     const results: Array<Record<string, unknown>> = []

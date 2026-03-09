@@ -33,6 +33,9 @@ export default function NotificationsPage() {
     queryKey: ['notifications', user?.id],
     queryFn: () => notificationService.fetchNotifications(user!.id),
     enabled: !!user,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   })
 
   const unreadCount = notifications.filter((n) => !n.read_at).length

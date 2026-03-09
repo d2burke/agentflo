@@ -25,7 +25,7 @@ function normalizeMessage(message: Message): Message {
   }
 }
 
-async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<string> {
+async function ensureAuthenticatedSession(supabase: SupabaseClient): Promise<void> {
   const {
     data: { user },
     error: userError,
@@ -35,7 +35,7 @@ async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<s
     throw new Error(SESSION_EXPIRED_MESSAGE)
   }
 
-  let {
+  const {
     data: { session },
   } = await supabase.auth.getSession()
 
@@ -48,22 +48,17 @@ async function getAccessTokenForMessageSend(supabase: SupabaseClient): Promise<s
     if (error || !data.session?.access_token) {
       throw new Error(SESSION_EXPIRED_MESSAGE)
     }
-
-    session = data.session
   }
-
-  return session.access_token
 }
 
-async function triggerMessageNotification(messageId: string, accessToken: string): Promise<void> {
+async function triggerMessageNotification(): Promise<void> {
   try {
     const response = await fetch('/api/messages/notify', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({ messageId }),
+      body: JSON.stringify({}),
     })
 
     if (!response.ok) {
@@ -140,7 +135,7 @@ export const messageService = {
     metadata?: Record<string, unknown>
   }): Promise<Message> {
     const supabase = createClient()
-    const accessToken = await getAccessTokenForMessageSend(supabase)
+    await ensureAuthenticatedSession(supabase)
 
     const insertPayload: Record<string, unknown> = {
       sender_id: params.senderId,
@@ -193,7 +188,7 @@ export const messageService = {
     }
 
     const message = normalizeMessage(data as Message)
-    await triggerMessageNotification(message.id, accessToken)
+    await triggerMessageNotification()
     return message
   },
 
