@@ -24,10 +24,115 @@ type TaskRow = {
   runner_id: string | null
 }
 
+type NotificationDispatchParams = {
+  serviceClient: ReturnType<typeof createClient>
+  supabaseUrl: string
+  serviceRoleKey: string
+  messageId: string
+  conversationId: string
+  senderId: string
+  recipientId: string
+  taskId: string | null
+  body: string
+  messageType: string
+}
+
 function canonicalizeParticipants(firstId: string, secondId: string) {
   return firstId < secondId
     ? { participant1: firstId, participant2: secondId }
     : { participant1: secondId, participant2: firstId }
+}
+
+function buildMessagePreview(body: string, messageType: string) {
+  const trimmed = body.trim()
+
+  if (trimmed.length > 0) {
+    return trimmed.length > 100 ? `${trimmed.slice(0, 97)}...` : trimmed
+  }
+
+  if (messageType === 'image') return 'Sent an image'
+  if (messageType === 'file') return 'Sent a file'
+
+  return 'New message'
+}
+
+async function dispatchMessageNotification({
+  serviceClient,
+  supabaseUrl,
+  serviceRoleKey,
+  messageId,
+  conversationId,
+  senderId,
+  recipientId,
+  taskId,
+  body,
+  messageType,
+}: NotificationDispatchParams): Promise<boolean> {
+  const { data: senderProfile } = await serviceClient
+    .from('users')
+    .select('full_name')
+    .eq('id', senderId)
+    .maybeSingle()
+
+  const senderName = senderProfile?.full_name ?? 'Someone'
+  const preview = buildMessagePreview(body, messageType)
+
+  const notificationResponse = await fetch(`${supabaseUrl}/functions/v1/send-notification`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: serviceRoleKey,
+    },
+    body: JSON.stringify({
+      userId: recipientId,
+      type: 'new_message',
+      data: {
+        sender_name: senderName,
+        message_preview: preview,
+        conversation_id: conversationId,
+        task_id: taskId,
+        screen: 'messages',
+      },
+      customTitle: senderName,
+      customBody: preview,
+    }),
+  })
+
+  const notificationBody = await notificationResponse.json().catch(() => ({}))
+  const processedAt = new Date().toISOString()
+
+  if (!notificationResponse.ok) {
+    const errorMessage = notificationBody?.error ?? 'Failed to dispatch message notification'
+    await serviceClient
+      .from('message_notification_jobs')
+      .update({
+        status: 'failed',
+        attempts: 1,
+        push_sent: false,
+        last_error: errorMessage,
+        processed_at: processedAt,
+      })
+      .eq('message_id', messageId)
+
+    return false
+  }
+
+  const skipped = typeof notificationBody?.skipped === 'string' ? notificationBody.skipped : null
+  const status = skipped ? 'skipped' : 'sent'
+
+  await serviceClient
+    .from('message_notification_jobs')
+    .update({
+      status,
+      attempts: 1,
+      push_sent: Boolean(notificationBody?.push_sent),
+      notification_id: notificationBody?.notification_id ?? null,
+      last_error: skipped,
+      processed_at: processedAt,
+    })
+    .eq('message_id', messageId)
+
+  return Boolean(notificationBody?.push_sent)
 }
 
 serve(async (req) => {
@@ -326,25 +431,18 @@ serve(async (req) => {
 
     if (recipientId && recipientId !== senderId && typeof message.id === 'string') {
       try {
-        const processResponse = await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: supabaseAnonKey,
-          },
-          body: JSON.stringify({
-            messageId: message.id,
-            internalServiceKey: serviceRoleKey,
-          }),
+        notificationSent = await dispatchMessageNotification({
+          serviceClient,
+          supabaseUrl,
+          serviceRoleKey,
+          messageId: message.id,
+          conversationId: canonicalConversation.id,
+          senderId,
+          recipientId,
+          taskId: canonicalConversation.task_id,
+          body,
+          messageType,
         })
-
-        if (!processResponse.ok) {
-          const processError = await processResponse.text().catch(() => '')
-          console.error('[send-message] Failed to process notification job:', processResponse.status, processError)
-        } else {
-          const processBody = await processResponse.json().catch(() => ({}))
-          notificationSent = Boolean(processBody?.jobs?.[0]?.push_sent)
-        }
       } catch (notifErr) {
         console.error('[send-message] Failed to process notification job:', notifErr)
       }

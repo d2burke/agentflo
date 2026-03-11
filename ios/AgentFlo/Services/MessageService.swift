@@ -64,19 +64,6 @@ final class MessageService {
         return ["Authorization": "Bearer \(session.accessToken)"]
     }
 
-    private func triggerNotificationProcessing(messageId: UUID) async {
-        do {
-            let headers = try await authHeaders()
-            let bodyData = try JSONEncoder().encode(MessageNotificationPayload(messageId: messageId.uuidString))
-            let _: MessageNotificationResponse = try await supabase.functions.invoke(
-                "process-message-notifications",
-                options: .init(headers: headers, body: bodyData)
-            )
-        } catch {
-            print("[MessageService] Failed to trigger notification processing: \(error)")
-        }
-    }
-
     // MARK: - Fetch Messages
 
     func fetchMessages(taskId: UUID) async throws -> [Message] {
@@ -119,25 +106,24 @@ final class MessageService {
 
     @discardableResult
     func sendMessage(conversationId: UUID, senderId: UUID, body: String) async throws -> Message {
-        let message: Message = try await supabase
-            .from("messages")
-            .insert(
-                InsertMessageBody(
-                    senderId: senderId,
-                    body: body,
-                    conversationId: conversationId,
-                    clientMessageId: UUID(),
-                    messageType: "text",
-                    metadata: [:]
-                )
-            )
-            .select()
-            .single()
-            .execute()
-            .value
+        _ = senderId
+        let payload = SendMessagePayload(
+            body: body,
+            taskId: nil,
+            conversationId: conversationId.uuidString,
+            clientMessageId: UUID().uuidString,
+            messageType: "text",
+            metadata: [:]
+        )
+        let bodyData = try JSONEncoder().encode(payload)
+        let headers = try await authHeaders()
 
-        await triggerNotificationProcessing(messageId: message.id)
-        return message
+        let response: SendMessageResponse = try await supabase.functions.invoke(
+            "send-message",
+            options: .init(headers: headers, body: bodyData)
+        )
+
+        return response.message
     }
 
     // MARK: - Read State
@@ -270,44 +256,31 @@ final class MessageService {
 
 // MARK: - Request / Response Bodies
 
-private struct InsertMessageBody: Encodable {
-    let senderId: UUID
+private struct SendMessagePayload: Encodable {
     let body: String
-    let conversationId: UUID
-    let clientMessageId: UUID
+    let taskId: String?
+    let conversationId: String?
+    let clientMessageId: String
     let messageType: String
     let metadata: [String: String]
 
     enum CodingKeys: String, CodingKey {
-        case body, metadata
-        case senderId = "sender_id"
-        case conversationId = "conversation_id"
-        case clientMessageId = "client_message_id"
-        case messageType = "message_type"
+        case body
+        case taskId = "taskId"
+        case conversationId = "conversationId"
+        case clientMessageId = "clientMessageId"
+        case messageType = "messageType"
+        case metadata
     }
 }
 
-private struct MessageNotificationPayload: Encodable {
-    let messageId: String
+private struct SendMessageResponse: Decodable {
+    let message: Message
+    let notificationSent: Bool
 
     enum CodingKeys: String, CodingKey {
-        case messageId = "messageId"
-    }
-}
-
-private struct MessageNotificationResponse: Decodable {
-    let jobs: [MessageNotificationJob]
-}
-
-private struct MessageNotificationJob: Decodable {
-    let messageId: UUID?
-    let status: String?
-    let pushSent: Bool?
-
-    enum CodingKeys: String, CodingKey {
-        case messageId = "message_id"
-        case status
-        case pushSent = "push_sent"
+        case message
+        case notificationSent = "notification_sent"
     }
 }
 
