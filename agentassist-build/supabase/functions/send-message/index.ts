@@ -331,9 +331,11 @@ serve(async (req) => {
           headers: {
             'Content-Type': 'application/json',
             apikey: supabaseAnonKey,
-            'x-internal-service-key': serviceRoleKey,
           },
-          body: JSON.stringify({ messageId: message.id }),
+          body: JSON.stringify({
+            messageId: message.id,
+            internalServiceKey: serviceRoleKey,
+          }),
         })
 
         if (!processResponse.ok) {

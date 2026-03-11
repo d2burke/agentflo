@@ -115,15 +115,16 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const authorization = req.headers.get('Authorization') ?? ''
-    const internalServiceKey = req.headers.get('x-internal-service-key') ?? ''
     const bearerToken = authorization.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length)
       : ''
     const apiKey = req.headers.get('apikey') ?? ''
+    let actorUserId: string | null = null
+
+    const input = await req.json().catch(() => ({}))
+    const internalServiceKey = input.internalServiceKey ?? input.internal_service_key ?? null
     const isInternalCall = Boolean(serviceRoleKey) &&
       (internalServiceKey === serviceRoleKey || apiKey === serviceRoleKey || bearerToken === serviceRoleKey)
-
-    let actorUserId: string | null = null
 
     if (!isInternalCall) {
       const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -144,7 +145,6 @@ serve(async (req) => {
       actorUserId = user.id
     }
 
-    const input = await req.json().catch(() => ({}))
     const messageId = input.messageId ?? input.message_id ?? null
 
     if (messageId && !isValidUUID(messageId)) {

@@ -104,9 +104,11 @@ export async function POST(request: Request) {
           headers: {
             'Content-Type': 'application/json',
             apikey: supabaseAnonKey,
-            'x-internal-service-key': serviceRoleKey,
           },
-          body: JSON.stringify({ messageId }),
+          body: JSON.stringify({
+            messageId,
+            internalServiceKey: serviceRoleKey,
+          }),
         })
       } else {
         await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {

@@ -46,9 +46,11 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
         apikey: supabaseAnonKey,
-        'x-internal-service-key': serviceRoleKey,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        internalServiceKey: serviceRoleKey,
+      }),
     })
   } else {
     const authorization = await resolveAuthorization(request)
