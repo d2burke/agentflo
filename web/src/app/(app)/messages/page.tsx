@@ -139,8 +139,8 @@ function MessagesContent() {
     queryKey: ['conversations', user?.id],
     queryFn: () => messageService.fetchConversations(user!.id),
     enabled: !!user,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   })
 
@@ -334,8 +334,8 @@ function MessageThread({
         ? (lastPage[0]?.id ?? null)
         : null
     ),
-    refetchInterval: 3000,
-    refetchIntervalInBackground: false,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   })
 

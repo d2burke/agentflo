@@ -295,7 +295,7 @@ struct MessagingView: View {
 
     private func pollLatestMessages() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: .seconds(2))
             guard resolvedConversationId != nil else { continue }
             await refreshLatestMessages()
         }

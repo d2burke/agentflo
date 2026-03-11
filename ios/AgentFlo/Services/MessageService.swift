@@ -64,6 +64,18 @@ final class MessageService {
         return ["Authorization": "Bearer \(session.accessToken)"]
     }
 
+    private func dispatchMessageNotifications(messageId: UUID) async {
+        do {
+            let headers = try await authHeaders()
+            _ = try await supabase.functions.invoke(
+                "process-message-notifications",
+                options: .init(headers: headers, body: ["messageId": messageId.uuidString])
+            ) as FunctionResponse
+        } catch {
+            print("[MessageService] Failed to dispatch message notifications: \(error)")
+        }
+    }
+
     // MARK: - Fetch Messages
 
     func fetchMessages(taskId: UUID) async throws -> [Message] {
@@ -106,24 +118,23 @@ final class MessageService {
 
     @discardableResult
     func sendMessage(conversationId: UUID, senderId: UUID, body: String) async throws -> Message {
-        _ = senderId
-        let payload = SendMessagePayload(
-            body: body,
-            taskId: nil,
-            conversationId: conversationId.uuidString,
-            clientMessageId: UUID().uuidString,
-            messageType: "text",
-            metadata: [:]
-        )
-        let bodyData = try JSONEncoder().encode(payload)
-        let headers = try await authHeaders()
+        let message = try await supabase
+            .from("messages")
+            .insert(InsertMessageBody(
+                senderId: senderId,
+                body: body,
+                conversationId: conversationId,
+                clientMessageId: UUID(),
+                messageType: "text",
+                metadata: [:]
+            ))
+            .select()
+            .single()
+            .execute()
+            .value as Message
 
-        let response: SendMessageResponse = try await supabase.functions.invoke(
-            "send-message",
-            options: .init(headers: headers, body: bodyData)
-        )
-
-        return response.message
+        await dispatchMessageNotifications(messageId: message.id)
+        return message
     }
 
     // MARK: - Read State
@@ -256,31 +267,20 @@ final class MessageService {
 
 // MARK: - Request / Response Bodies
 
-private struct SendMessagePayload: Encodable {
+private struct InsertMessageBody: Encodable {
+    let senderId: UUID
     let body: String
-    let taskId: String?
-    let conversationId: String?
-    let clientMessageId: String
+    let conversationId: UUID
+    let clientMessageId: UUID
     let messageType: String
     let metadata: [String: String]
 
     enum CodingKeys: String, CodingKey {
-        case body
-        case taskId = "taskId"
-        case conversationId = "conversationId"
-        case clientMessageId = "clientMessageId"
-        case messageType = "messageType"
-        case metadata
-    }
-}
-
-private struct SendMessageResponse: Decodable {
-    let message: Message
-    let notificationSent: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case message
-        case notificationSent = "notification_sent"
+        case body, metadata
+        case senderId = "sender_id"
+        case conversationId = "conversation_id"
+        case clientMessageId = "client_message_id"
+        case messageType = "message_type"
     }
 }
 

@@ -33,8 +33,8 @@ export default function NotificationsPage() {
     queryKey: ['notifications', user?.id],
     queryFn: () => notificationService.fetchNotifications(user!.id),
     enabled: !!user,
-    refetchInterval: 5000,
-    refetchIntervalInBackground: false,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   })
 

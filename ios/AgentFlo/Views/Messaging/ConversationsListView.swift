@@ -78,7 +78,7 @@ struct ConversationsListView: View {
 
     private func pollConversations() async {
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(5))
+            try? await Task.sleep(for: .seconds(3))
             guard currentUserId != nil else { continue }
             await loadConversations()
         }
