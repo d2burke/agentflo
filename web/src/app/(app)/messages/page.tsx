@@ -178,9 +178,17 @@ function MessagesContent() {
   useEffect(() => {
     if (!user) return
 
-    const channel = messageService.subscribeToConversationActivity(user.id, () => {
-      void conversationsQuery.refetch()
-    })
+    const channel = messageService.subscribeToConversationActivity(
+      user.id,
+      () => {
+        void conversationsQuery.refetch()
+      },
+      (status) => {
+        if (status !== 'SUBSCRIBED') {
+          void conversationsQuery.refetch()
+        }
+      },
+    )
 
     return () => {
       void channel.unsubscribe()
@@ -338,6 +346,7 @@ function MessageThread({
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   })
+  const refetchMessages = messagesQuery.refetch
 
   const serverMessages = useMemo(
     () => (messagesQuery.data?.pages ?? []).slice().reverse().flatMap((page) => page),
@@ -362,28 +371,37 @@ function MessageThread({
   }, [messages])
 
   useEffect(() => {
-    const channel = messageService.subscribeToMessages(conversationId, (message) => {
-      queryClient.setQueryData<MessagePages>(['messages', conversationId], (existing) => appendMessageToPages(existing, message))
-      setOptimisticMessages((current) => current.filter((candidate) => {
-        if (candidate.id === message.id) return false
-        if (candidate.client_message_id && candidate.client_message_id === message.client_message_id) return false
-        return true
-      }))
-      queryClient.setQueryData<ConversationPreview[]>(['conversations', userId], (current) => patchConversationList(current, conversationId, {
-        last_message_id: message.id,
-        last_message_body: message.body,
-        last_message_type: message.message_type ?? 'text',
-        last_message_at: message.created_at ?? new Date().toISOString(),
-        last_message_sender_id: message.sender_id,
-        unread_count: 0,
-        sort_at: message.created_at ?? new Date().toISOString(),
-      }))
-    })
+    const channel = messageService.subscribeToMessages(
+      conversationId,
+      (message) => {
+        queryClient.setQueryData<MessagePages>(['messages', conversationId], (existing) => appendMessageToPages(existing, message))
+        setOptimisticMessages((current) => current.filter((candidate) => {
+          if (candidate.id === message.id) return false
+          if (candidate.client_message_id && candidate.client_message_id === message.client_message_id) return false
+          return true
+        }))
+        queryClient.setQueryData<ConversationPreview[]>(['conversations', userId], (current) => patchConversationList(current, conversationId, {
+          last_message_id: message.id,
+          last_message_body: message.body,
+          last_message_type: message.message_type ?? 'text',
+          last_message_at: message.created_at ?? new Date().toISOString(),
+          last_message_sender_id: message.sender_id,
+          unread_count: 0,
+          sort_at: message.created_at ?? new Date().toISOString(),
+        }))
+      },
+      (status) => {
+        if (status !== 'SUBSCRIBED') {
+          void refetchMessages()
+          void queryClient.invalidateQueries({ queryKey: ['conversations', userId] })
+        }
+      },
+    )
 
     return () => {
       void channel.unsubscribe()
     }
-  }, [conversationId, queryClient, userId])
+  }, [conversationId, queryClient, refetchMessages, userId])
 
   useEffect(() => {
     if (!lastMessageId) return

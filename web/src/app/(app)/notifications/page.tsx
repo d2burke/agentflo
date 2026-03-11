@@ -43,9 +43,17 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!user) return
 
-    const channel = notificationService.subscribeToNotifications(user.id, () => {
-      void qc.invalidateQueries({ queryKey: ['notifications', user.id] })
-    })
+    const channel = notificationService.subscribeToNotifications(
+      user.id,
+      () => {
+        void qc.invalidateQueries({ queryKey: ['notifications', user.id] })
+      },
+      (status) => {
+        if (status !== 'SUBSCRIBED') {
+          void qc.invalidateQueries({ queryKey: ['notifications', user.id] })
+        }
+      },
+    )
 
     return () => {
       void channel.unsubscribe()

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { AppNotification } from '@/types/models'
+import type { RealtimeSubscriptionStatus } from '@/services/message-service'
 
 export const notificationService = {
   async fetchNotifications(userId: string): Promise<AppNotification[]> {
@@ -36,7 +37,11 @@ export const notificationService = {
     if (error) throw error
   },
 
-  subscribeToNotifications(userId: string, callback: () => void) {
+  subscribeToNotifications(
+    userId: string,
+    callback: () => void,
+    onStatusChange?: (status: RealtimeSubscriptionStatus, error?: Error) => void,
+  ) {
     const supabase = createClient()
     return supabase
       .channel(`notifications:${userId}`)
@@ -50,6 +55,8 @@ export const notificationService = {
         },
         () => callback(),
       )
-      .subscribe()
+      .subscribe((status, error) => {
+        onStatusChange?.(status, error)
+      })
   },
 }

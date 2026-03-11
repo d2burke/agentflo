@@ -240,7 +240,12 @@ final class MessageService {
                 filter: "conversation_id=eq.\(conversationId.uuidString)"
             )
 
-            await channel.subscribe()
+            do {
+                try await channel.subscribeWithError()
+            } catch {
+                print("[MessageService] Realtime subscription failed for \(conversationId): \(error)")
+                return
+            }
 
             for await insertion in insertions {
                 do {

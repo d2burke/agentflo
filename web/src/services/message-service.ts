@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { Conversation, ConversationPreview, Message, MessageType } from '@/types/models'
 import type { RealtimePostgresInsertPayload, SupabaseClient } from '@supabase/supabase-js'
 
+export type RealtimeSubscriptionStatus = 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR'
+
 export const MESSAGE_PAGE_SIZE = 50
 export const SESSION_EXPIRED_MESSAGE = 'Session expired. Please sign in again.'
 const SESSION_REFRESH_WINDOW_MS = 60_000
@@ -277,7 +279,11 @@ export const messageService = {
     return unwrapSingleRecord(data as Conversation | Conversation[] | null, 'Task conversation not found')
   },
 
-  subscribeToConversationActivity(userId: string, callback: () => void) {
+  subscribeToConversationActivity(
+    userId: string,
+    callback: () => void,
+    onStatusChange?: (status: RealtimeSubscriptionStatus, error?: Error) => void,
+  ) {
     const supabase = createClient()
     return supabase
       .channel(`conversation-activity:${userId}`)
@@ -291,10 +297,16 @@ export const messageService = {
         },
         () => callback(),
       )
-      .subscribe()
+      .subscribe((status, error) => {
+        onStatusChange?.(status, error)
+      })
   },
 
-  subscribeToMessages(conversationId: string, callback: (message: Message) => void) {
+  subscribeToMessages(
+    conversationId: string,
+    callback: (message: Message) => void,
+    onStatusChange?: (status: RealtimeSubscriptionStatus, error?: Error) => void,
+  ) {
     const supabase = createClient()
     return supabase
       .channel(`messages:${conversationId}`)
@@ -308,6 +320,8 @@ export const messageService = {
         },
         (payload: RealtimePostgresInsertPayload<Message>) => callback(normalizeMessage(payload.new)),
       )
-      .subscribe()
+      .subscribe((status, error) => {
+        onStatusChange?.(status, error)
+      })
   },
 }
