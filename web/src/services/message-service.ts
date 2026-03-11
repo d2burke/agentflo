@@ -82,27 +82,6 @@ async function sendMessageViaServerRoute(
   return response
 }
 
-async function triggerMessageNotifications(messageId: string, accessToken: string | null): Promise<void> {
-  const notifyRequest = (token: string | null) => fetch('/api/messages/notify', {
-    method: 'POST',
-    headers: token
-      ? {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      }
-      : {
-        'Content-Type': 'application/json',
-      },
-    body: JSON.stringify({ messageId }),
-  })
-
-  const response = await notifyRequest(accessToken)
-
-  if (response.status === 401 && accessToken) {
-    await notifyRequest(null)
-  }
-}
-
 export const messageService = {
   async fetchConversations(userId: string, limit = 100): Promise<ConversationPreview[]> {
     const supabase = createClient()
@@ -187,68 +166,37 @@ export const messageService = {
       metadata: params.metadata ?? {},
     }
 
-    const insertPayload = {
-      sender_id: params.senderId,
-      body: params.body,
-      conversation_id: params.conversationId ?? null,
-      task_id: params.taskId ?? null,
-      client_message_id: params.clientMessageId ?? null,
-      message_type: params.messageType ?? 'text',
-      metadata: params.metadata ?? {},
+    const response = await sendMessageViaServerRoute(payload, accessToken)
+
+    const responseText = await response.text()
+    let parsed: { error?: string; message?: Message } = {}
+
+    if (responseText) {
+      try {
+        parsed = JSON.parse(responseText) as { error?: string; message?: Message }
+      } catch {
+        parsed = { error: responseText }
+      }
     }
 
-    const { data, error } = await supabase
-      .from('messages')
-      .insert(insertPayload)
-      .select('*')
-      .single()
+    if (!response.ok) {
+      const errorMessage = parsed.error ?? 'Failed to send message'
+      if (
+        response.status === 401 ||
+        errorMessage.toLowerCase().includes('jwt') ||
+        errorMessage.trim().toLowerCase() === 'unauthorized'
+      ) {
+        throw new Error(SESSION_EXPIRED_MESSAGE)
+      }
 
-    if (!error && data) {
-      const insertedMessage = normalizeMessage(data as Message)
-
-      void triggerMessageNotifications(insertedMessage.id, accessToken).catch(() => {
-        // Best-effort only. Message persistence should not fail on push dispatch.
-      })
-
-      return insertedMessage
+      throw new Error(errorMessage)
     }
 
-    const directErrorMessage = (error as { message?: string } | null)?.message?.toLowerCase() ?? ''
-    if (directErrorMessage.includes('jwt') || directErrorMessage.includes('unauthorized')) {
-      const response = await sendMessageViaServerRoute(payload, accessToken)
-
-      const responseText = await response.text()
-      let parsed: { error?: string; message?: Message } = {}
-
-      if (responseText) {
-        try {
-          parsed = JSON.parse(responseText) as { error?: string; message?: Message }
-        } catch {
-          parsed = { error: responseText }
-        }
-      }
-
-      if (!response.ok) {
-        const errorMessage = parsed.error ?? 'Failed to send message'
-        if (
-          response.status === 401 ||
-          errorMessage.toLowerCase().includes('jwt') ||
-          errorMessage.trim().toLowerCase() === 'unauthorized'
-        ) {
-          throw new Error(SESSION_EXPIRED_MESSAGE)
-        }
-
-        throw new Error(errorMessage)
-      }
-
-      if (!parsed.message) {
-        throw new Error('Message send returned no payload')
-      }
-
-      return normalizeMessage(parsed.message)
+    if (!parsed.message) {
+      throw new Error('Message send returned no payload')
     }
 
-    throw error
+    return normalizeMessage(parsed.message)
   },
 
   async getOrCreateConversation(_userId: string, otherUserId: string, taskId?: string): Promise<Conversation> {

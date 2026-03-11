@@ -58,25 +58,24 @@ describe('messageService', () => {
   })
 
   describe('sendMessage', () => {
-    it('inserts the message directly and triggers notification processing', async () => {
+    it('sends messages through the canonical server route', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
       mock.auth.getSession.mockResolvedValue({
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
-          id: 'msg-1',
-          conversation_id: 'conv-1',
-          task_id: 'task-1',
-          sender_id: 'user-1',
-          body: 'Hello!',
-        },
-      })
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        status: 200,
-        text: vi.fn().mockResolvedValue(JSON.stringify({ jobs: [] })),
+        status: 201,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
+            id: 'msg-1',
+            conversation_id: 'conv-1',
+            task_id: 'task-1',
+            sender_id: 'user-1',
+            body: 'Hello!',
+          },
+        })),
       } as unknown as Response)
 
       await messageService.sendMessage({
@@ -87,25 +86,25 @@ describe('messageService', () => {
         clientMessageId: 'client-1',
       })
 
-      expect(mock.from).toHaveBeenCalledWith('messages')
-      expect(mock.insert).toHaveBeenCalledWith({
-        sender_id: 'user-1',
-        body: 'Hello!',
-        conversation_id: 'conv-1',
-        task_id: 'task-1',
-        client_message_id: 'client-1',
-        message_type: 'text',
-        metadata: {},
-      })
+      expect(mock.from).not.toHaveBeenCalledWith('messages')
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/messages/notify',
+        '/api/messages/send',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: 'Bearer access-token',
           },
-          body: JSON.stringify({ messageId: 'msg-1' }),
+          body: JSON.stringify({
+            body: 'Hello!',
+            conversation_id: 'conv-1',
+            task_id: 'task-1',
+            clientMessageId: 'client-1',
+            conversationId: 'conv-1',
+            taskId: 'task-1',
+            messageType: 'text',
+            metadata: {},
+          }),
         },
       )
     })
@@ -116,9 +115,11 @@ describe('messageService', () => {
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        error: { message: 'new row violates row-level security policy' },
-      })
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'new row violates row-level security policy' })),
+      } as unknown as Response)
 
       await expect(messageService.sendMessage({
         senderId: 'user-1',
@@ -134,9 +135,6 @@ describe('messageService', () => {
       mock.auth.refreshSession.mockResolvedValue({
         data: { session: null, user: null },
         error: new Error('refresh failed'),
-      })
-      mock.__setMockResult({
-        error: { message: 'JWT expired' },
       })
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
@@ -165,19 +163,18 @@ describe('messageService', () => {
         },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
-          id: 'msg-2',
-          conversation_id: 'conv-1',
-          task_id: null,
-          sender_id: 'user-1',
-          body: 'Hello?',
-        },
-      })
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        status: 200,
-        text: vi.fn().mockResolvedValue(JSON.stringify({ jobs: [] })),
+        status: 201,
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
+            id: 'msg-2',
+            conversation_id: 'conv-1',
+            task_id: null,
+            sender_id: 'user-1',
+            body: 'Hello?',
+          },
+        })),
       } as unknown as Response)
 
       await messageService.sendMessage({
@@ -189,7 +186,7 @@ describe('messageService', () => {
 
       expect(mock.auth.refreshSession).toHaveBeenCalled()
       expect(global.fetch).toHaveBeenCalledWith(
-        '/api/messages/notify',
+        '/api/messages/send',
         expect.objectContaining({
           headers: {
             'Content-Type': 'application/json',
@@ -201,9 +198,6 @@ describe('messageService', () => {
 
     it('fails with a session expired message when no authenticated user is present', async () => {
       mock.auth.getUser.mockResolvedValue({ data: { user: null }, error: null })
-      mock.__setMockResult({
-        error: { message: 'JWT expired' },
-      })
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
@@ -224,20 +218,19 @@ describe('messageService', () => {
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        data: {
-          id: 'msg-existing',
-          conversation_id: 'conv-1',
-          task_id: null,
-          sender_id: 'user-1',
-          body: 'Hello?',
-          client_message_id: '11111111-1111-4111-8111-111111111111',
-        },
-      })
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        text: vi.fn().mockResolvedValue(JSON.stringify({ jobs: [] })),
+        text: vi.fn().mockResolvedValue(JSON.stringify({
+          message: {
+            id: 'msg-existing',
+            conversation_id: 'conv-1',
+            task_id: null,
+            sender_id: 'user-1',
+            body: 'Hello?',
+            client_message_id: '11111111-1111-4111-8111-111111111111',
+          },
+        })),
       } as unknown as Response)
 
       const message = await messageService.sendMessage({
@@ -256,9 +249,6 @@ describe('messageService', () => {
         data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
         error: null,
       })
-      mock.__setMockResult({
-        error: { message: 'JWT expired' },
-      })
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
@@ -271,6 +261,61 @@ describe('messageService', () => {
         conversationId: 'conv-1',
         clientMessageId: '33333333-3333-4333-8333-333333333333',
       })).rejects.toThrow('Session expired. Please sign in again.')
+    })
+
+    it('retries the server route without a bearer token after an initial 401', async () => {
+      mock.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null })
+      mock.auth.getSession.mockResolvedValue({
+        data: { session: { access_token: 'access-token', expires_at: Math.floor(Date.now() / 1000) + 3600 } },
+        error: null,
+      })
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          text: vi.fn().mockResolvedValue(JSON.stringify({ error: 'Unauthorized' })),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 201,
+          text: vi.fn().mockResolvedValue(JSON.stringify({
+            message: {
+              id: 'msg-retry',
+              conversation_id: 'conv-1',
+              task_id: null,
+              sender_id: 'user-1',
+              body: 'Hello again',
+            },
+          })),
+        } as unknown as Response)
+
+      const message = await messageService.sendMessage({
+        senderId: 'user-1',
+        body: 'Hello again',
+        conversationId: 'conv-1',
+        clientMessageId: '44444444-4444-4444-8444-444444444444',
+      })
+
+      expect(message.id).toBe('msg-retry')
+      expect(global.fetch).toHaveBeenNthCalledWith(
+        1,
+        '/api/messages/send',
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer access-token',
+          },
+        }),
+      )
+      expect(global.fetch).toHaveBeenNthCalledWith(
+        2,
+        '/api/messages/send',
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
     })
   })
 
