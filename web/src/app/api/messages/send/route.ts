@@ -61,6 +61,7 @@ export async function POST(request: Request) {
   const payload = await request.json().catch(() => ({}))
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.json({ error: 'Supabase environment is not configured' }, { status: 500 })
@@ -97,15 +98,27 @@ export async function POST(request: Request) {
   const messageId = parsed?.message?.id
   if (response.ok && messageId) {
     try {
-      await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: supabaseAnonKey,
-          Authorization: effectiveAuthorization,
-        },
-        body: JSON.stringify({ messageId }),
-      })
+      if (serviceRoleKey) {
+        await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: supabaseAnonKey,
+            'x-internal-service-key': serviceRoleKey,
+          },
+          body: JSON.stringify({ messageId }),
+        })
+      } else {
+        await fetch(`${supabaseUrl}/functions/v1/process-message-notifications`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: supabaseAnonKey,
+            Authorization: effectiveAuthorization,
+          },
+          body: JSON.stringify({ messageId }),
+        })
+      }
     } catch {
       // Best-effort fallback only. Message delivery should still succeed.
     }

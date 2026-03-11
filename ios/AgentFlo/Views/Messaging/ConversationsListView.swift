@@ -55,6 +55,9 @@ struct ConversationsListView: View {
         .navigationTitle("Messages")
         .refreshable { await loadConversations() }
         .task { await loadConversations() }
+        .task(id: currentUserId) {
+            await pollConversations()
+        }
         .onAppear {
             if hasLoadedOnce {
                 Task { await loadConversations() }
@@ -71,6 +74,14 @@ struct ConversationsListView: View {
         }
         isLoading = false
         hasLoadedOnce = true
+    }
+
+    private func pollConversations() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(5))
+            guard currentUserId != nil else { continue }
+            await loadConversations()
+        }
     }
 }
 

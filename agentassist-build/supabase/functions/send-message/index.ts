@@ -330,8 +330,8 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            apikey: serviceRoleKey,
-            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: supabaseAnonKey,
+            'x-internal-service-key': serviceRoleKey,
           },
           body: JSON.stringify({ messageId: message.id }),
         })

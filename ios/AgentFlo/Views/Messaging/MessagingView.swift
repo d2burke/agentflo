@@ -110,6 +110,9 @@ struct MessagingView: View {
         .task(id: context.cacheKey) {
             await configureThread()
         }
+        .task(id: "poll-\(context.cacheKey)") {
+            await pollLatestMessages()
+        }
         .onDisappear {
             appState.messageService.unsubscribe()
         }
@@ -287,6 +290,41 @@ struct MessagingView: View {
                     lastReadMessageId: newMessage.id
                 )
             }
+        }
+    }
+
+    private func pollLatestMessages() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(4))
+            guard resolvedConversationId != nil else { continue }
+            await refreshLatestMessages()
+        }
+    }
+
+    private func refreshLatestMessages() async {
+        guard let conversationId = resolvedConversationId else { return }
+
+        do {
+            let latestPage = try await appState.messageService.fetchMessagePage(
+                conversationId: conversationId,
+                beforeMessageId: nil,
+                limit: 50
+            )
+            let previousCount = messages.count
+            messages = mergeMessages(existing: messages, incoming: latestPage)
+            oldestLoadedMessageId = messages.first?.id
+
+            if messages.count > previousCount {
+                if let lastMessageId = messages.last?.id {
+                    try? await appState.messageService.markConversationRead(
+                        conversationId: conversationId,
+                        lastReadMessageId: lastMessageId
+                    )
+                }
+                scrollToBottom(animated: true)
+            }
+        } catch {
+            // Fallback polling should stay quiet if the network is briefly unavailable.
         }
     }
 

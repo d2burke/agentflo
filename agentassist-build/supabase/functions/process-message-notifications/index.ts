@@ -115,12 +115,13 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const authorization = req.headers.get('Authorization') ?? ''
+    const internalServiceKey = req.headers.get('x-internal-service-key') ?? ''
     const bearerToken = authorization.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length)
       : ''
     const apiKey = req.headers.get('apikey') ?? ''
     const isInternalCall = Boolean(serviceRoleKey) &&
-      (bearerToken === serviceRoleKey || apiKey === serviceRoleKey)
+      (internalServiceKey === serviceRoleKey || apiKey === serviceRoleKey || bearerToken === serviceRoleKey)
 
     let actorUserId: string | null = null
 
